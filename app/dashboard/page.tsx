@@ -1,7 +1,16 @@
+import { buttonVariants } from "@/components/ui/button";
+import Link from "next/link";
+
 export default async function DashboardRoute() {
   return (
     <div>
-      <h1>Hello from the dashboard</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-medium">Your Blog articles</h2>
+
+        <Link className={buttonVariants()} href="/dashboard/create">
+          Create Post
+        </Link>
+      </div>
     </div>
   );
 }
