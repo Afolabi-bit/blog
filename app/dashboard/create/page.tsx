@@ -25,15 +25,15 @@ export default function CreateBlogRoute() {
           <form className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label>Title</Label>
-              <Input />
+              <Input required type="text" placeholder="Title" />
             </div>
             <div className="flex flex-col gap-2">
               <Label>Content</Label>
-              <Textarea />
+              <Textarea required placeholder="Content" />
             </div>
             <div className="flex flex-col gap-2">
               <Label>Image URL</Label>
-              <Input />
+              <Input required type="url" placeholder="Image url" />
             </div>
 
             <Button>Create Post</Button>
