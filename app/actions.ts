@@ -13,7 +13,11 @@ export async function handleSubmission(formData: FormData) {
 
   const user = await getUser();
 
-  const data = await prisma.blogPost.create({
+  if (!user) {
+    return redirect("/api/auth/register");
+  }
+
+  await prisma.blogPost.create({
     data: {
       title: title as string,
       content: content as string,
