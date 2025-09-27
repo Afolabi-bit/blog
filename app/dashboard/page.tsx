@@ -23,10 +23,6 @@ export default async function DashboardRoute() {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
 
-  if (!user) {
-    return redirect("/api/auth/register");
-  }
-
   const data = await getData(user.id);
   return (
     <div>
