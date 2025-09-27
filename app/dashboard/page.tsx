@@ -3,7 +3,6 @@ import Link from "next/link";
 import { prisma } from "../utils/db";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { BlogPostCard } from "@/components/general/BlogPostCard";
-import { redirect } from "next/navigation";
 
 async function getData(userId: string) {
   await new Promise((resolve) => setTimeout(resolve, 4000));
