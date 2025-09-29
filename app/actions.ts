@@ -30,6 +30,5 @@ export async function handleSubmission(formData: FormData) {
   });
 
   revalidatePath("/");
-
   return redirect("/dashboard");
 }
