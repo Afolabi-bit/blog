@@ -6,8 +6,6 @@ import { BlogPostCard } from "@/components/general/BlogPostCard";
 import { redirect } from "next/navigation";
 
 async function getData(userId: string) {
-  await new Promise((resolve) => setTimeout(resolve, 4000));
-
   const data = await prisma.blogPost.findMany({
     where: {
       authorId: userId,

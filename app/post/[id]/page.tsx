@@ -66,7 +66,7 @@ export default async function IdPage({ params }: { params: Params }) {
       </div>
       <Card>
         <CardContent>
-          <p className="text-gray-700">{data.content}</p>
+          <p className="text-gray-700 whitespace-pre-line">{data.content}</p>
         </CardContent>
       </Card>
     </div>
