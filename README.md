@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Blog Platform
+
+This is a full-stack blog platform built with modern web technologies. It allows users to create, publish, and manage their own blog posts.
+
+## Features
+
+- **User Authentication:** Secure user authentication powered by Kinde. Users can sign up, log in, and manage their accounts.
+- **Create and Manage Posts:** Authenticated users can create new blog posts, view their own posts on a personal dashboard, and edit or delete them.
+- **Public Feed:** A main feed on the homepage displays the latest posts from all users, making it easy to discover new content.
+- **Rich Content:** Posts can include a title, main content, and a cover image.
+- **Responsive Design:** The application is fully responsive and works seamlessly on desktops, tablets, and mobile devices.
+- **Optimistic UI:** Leverages Next.js features for a fast and smooth user experience, including suspense for loading states.
+
+## Tech Stack
+
+- **Framework:** [Next.js](https://nextjs.org/)
+- **Authentication:** [Kinde](https://kinde.com/)
+- **ORM:** [Prisma](https://www.prisma.io/)
+- **Database:** [PostgreSQL](https://www.postgresql.org/)
+- **Styling:** [Tailwind CSS](https://tailwindcss.com/)
+- **UI Components:** [Radix UI](https://www.radix-ui.com/)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
 
 ## Getting Started
 
-First, run the development server:
+To get a local copy up and running, follow these simple steps.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### Prerequisites
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Node.js and npm (or yarn)
+- A PostgreSQL database
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Installation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1.  **Clone the repo**
+    ```sh
+    git clone https://github.com/Afolabi-bit/blog.git
+    ```
+2.  **Install NPM packages**
+    ```sh
+    npm install
+    ```
+3.  **Set up environment variables**
 
-## Learn More
+    Create a `.env` file in the root of your project and add the necessary environment variables. See the [Environment Variables](#environment-variables) section for more details.
 
-To learn more about Next.js, take a look at the following resources:
+4.  **Run database migrations**
+    ```sh
+    npx prisma db push
+    ```
+5.  **Run the development server**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+    ```sh
+    npm run dev
+    ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+    Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Deploy on Vercel
+## Environment Variables
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This project requires the following environment variables to be set in a `.env` file:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `DATABASE_URL`: The connection string for your PostgreSQL database.
+- `KINDE_CLIENT_ID`: Your Kinde client ID.
+- `KINDE_CLIENT_SECRET`: Your Kinde client secret.
+- `KINDE_ISSUER_URL`: Your Kinde issuer URL.
+- `KINDE_SITE_URL`: The URL of your site (e.g., `http://localhost:3000`).
+- `KINDE_POST_LOGOUT_REDIRECT_URL`: The URL to redirect to after logout (e.g., `http://localhost:3000`).
+- `KINDE_POST_LOGIN_REDIRECT_URL`: The URL to redirect to after login (e.g., `http://localhost:3000/dashboard`).
+
+## License
+
+Distributed under the MIT License. See `LICENSE` for more information.
