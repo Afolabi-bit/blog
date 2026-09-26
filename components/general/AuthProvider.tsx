@@ -5,9 +5,13 @@ import {
   useContext,
   useState,
   useCallback,
+  useEffect,
   ReactNode,
 } from "react";
 import type { AuthUser } from "@/lib/types";
+import { authEndpoints } from "@/lib/endpoints";
+import { getStoredRefreshToken, getStoredUser, setStoredUser } from "@/lib/client";
+import { toast } from "sonner";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -26,16 +30,43 @@ export function AuthProvider({
   initialUser,
 }: {
   children: ReactNode;
-  // Passed from the Server Component (layout) so the initial render is correct
   initialUser: AuthUser | null;
 }) {
-  const [user, setUser] = useState<AuthUser | null>(initialUser);
+  const [user, setUserState] = useState<AuthUser | null>(
+    initialUser ?? getStoredUser(),
+  );
+
+  const setUser = useCallback((newUser: AuthUser | null) => {
+    setUserState(newUser);
+    if (newUser) {
+      setStoredUser(newUser);
+    }
+  }, []);
+
+  // Hydrate or refresh profile if tokens exist but user isn't in state
+  useEffect(() => {
+    if (initialUser) {
+      setUserState(initialUser);
+      setStoredUser(initialUser);
+    } else {
+      const stored = getStoredUser();
+      if (stored) {
+        setUserState(stored);
+      }
+    }
+  }, [initialUser]);
 
   const logout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setUser(null);
-    window.location.href = "/login";
-  }, []);
+    try {
+      const refreshToken = getStoredRefreshToken();
+      await authEndpoints.logout(refreshToken || undefined);
+      setUser(null);
+      toast.success("Logged out successfully");
+      window.location.href = "/login";
+    } catch {
+      window.location.href = "/login";
+    }
+  }, [setUser]);
 
   return (
     <AuthContext.Provider value={{ user, setUser, logout }}>
