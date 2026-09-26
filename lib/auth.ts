@@ -53,24 +53,23 @@ export async function getRefreshToken(): Promise<string | undefined> {
 // Returns null if not authenticated or token is expired (middleware will
 // redirect before this is reached in protected routes).
 
+import axios from "axios";
+import { API_BASE_URL } from "./client";
+
 export async function getServerSession(): Promise<AuthUser | null> {
   const token = await getAccessToken();
   if (!token) return null;
 
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000"}/user/profile`,
+    const { data } = await axios.get(
+      `${API_BASE_URL}/user/iam`,
       {
         headers: { Authorization: `Bearer ${token}` },
-        // Don't cache — always fresh
-        cache: "no-store",
+        timeout: 8000,
       },
     );
 
-    if (!res.ok) return null;
-
-    const json = await res.json();
-    return (json.data as AuthUser) ?? null;
+    return (data.data as AuthUser) ?? null;
   } catch {
     return null;
   }
