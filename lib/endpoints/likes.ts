@@ -7,6 +7,13 @@ export interface LikeResponse {
 }
 
 export const likesEndpoints = {
+  getLikeStatus: async (postId: string) => {
+    const response = await apiClient.get<ApiResponse<LikeResponse>>(
+      `/api/posts/${postId}/like`,
+    );
+    return response.data;
+  },
+
   toggleLike: async (postId: string) => {
     const response = await apiClient.post<ApiResponse<LikeResponse>>(
       `/api/posts/${postId}/like`,
