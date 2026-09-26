@@ -2,8 +2,11 @@ import apiClient from "@/lib/client";
 import type { ApiResponse, AuthUser, AuthorRequest } from "@/lib/types";
 
 export interface UpdateProfilePayload {
-  username?: string;
+  first_name?: string;
+  last_name?: string;
   bio?: string;
+  avatar_url?: string;
+  username?: string;
 }
 
 export interface ChangePasswordPayload {
@@ -13,8 +16,10 @@ export interface ChangePasswordPayload {
 
 export interface AuthorRequestPayload {
   bio: string;
-  sample_work: string;
-  reason: string;
+  sample_links?: string[];
+  motivation?: string;
+  sample_work?: string;
+  reason?: string;
 }
 
 export const userEndpoints = {
