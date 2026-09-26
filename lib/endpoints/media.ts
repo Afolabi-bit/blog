@@ -3,6 +3,9 @@ import type { ApiResponse } from "@/lib/types";
 
 export interface MediaUploadResponse {
   url: string;
+  filename?: string;
+  size?: number;
+  mime_type?: string;
 }
 
 export const mediaEndpoints = {
