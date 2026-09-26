@@ -13,7 +13,7 @@ function parseJwtPayload(token: string): { exp?: number; [key: string]: unknown 
 }
 
 // Routes that are accessible without authentication
-const PUBLIC_PATHS = ["/", "/login", "/register", "/post", "/api/auth"];
+const PUBLIC_PATHS = ["/", "/login", "/register", "/post"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some(
