@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import axios from "axios";
 import { buttonVariants } from "@/components/ui/button";
-import { BlogPostCard } from "@/components/general/BlogPostCard";
+import { AuthorPostList } from "@/components/dashboard/AuthorPostList";
 import { getServerSession, getAccessToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/client";
 import type { Post, ApiResponse, PostsResponse } from "@/lib/types";
@@ -32,7 +32,10 @@ export default async function DashboardPage() {
   return (
     <div className="py-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Your articles</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Author Studio</h2>
+          <p className="text-xs text-gray-500 mt-1">Manage, draft, and publish your articles</p>
+        </div>
         {(user.role === "author" || user.role === "admin") && (
           <Link className={buttonVariants()} href="/dashboard/create">
             + New post
@@ -55,17 +58,7 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {posts.length === 0 ? (
-        <p className="text-gray-500 text-sm">
-          You haven&apos;t written any posts yet.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {posts.map((post) => (
-            <BlogPostCard key={post.id} data={post} />
-          ))}
-        </div>
-      )}
+      <AuthorPostList initialPosts={posts} />
     </div>
   );
 }
