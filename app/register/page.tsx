@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import axios from "axios";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/general/AuthProvider";
+import { authEndpoints } from "@/lib/endpoints";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,22 +33,33 @@ export default function RegisterPage() {
     setError(null);
 
     startTransition(async () => {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || data.status === "error") {
-        setError(data.message ?? "Registration failed");
-        return;
+      try {
+        const response = await authEndpoints.register({
+          username,
+          email,
+          password,
+        });
+        const user = response.data?.user ?? null;
+        if (user) {
+          setUser(user);
+        }
+        toast.success(response.message || "Account created successfully!");
+        router.push("/dashboard");
+        router.refresh();
+      } catch (err: unknown) {
+        let msg = "Registration failed";
+        if (axios.isAxiosError(err)) {
+          msg =
+            err.response?.data?.message ||
+            err.response?.data?.error ||
+            err.message ||
+            msg;
+        } else if (err instanceof Error) {
+          msg = err.message;
+        }
+        setError(msg);
+        toast.error(msg);
       }
-
-      setUser(data.data.user);
-      router.push("/dashboard");
-      router.refresh();
     });
   }
 
