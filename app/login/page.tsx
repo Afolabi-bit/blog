@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import axios from "axios";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/general/AuthProvider";
+import { authEndpoints } from "@/lib/endpoints";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,23 +34,29 @@ export default function LoginPage() {
     setError(null);
 
     startTransition(async () => {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || data.status === "error") {
-        setError(data.message ?? "Invalid credentials");
-        return;
+      try {
+        const response = await authEndpoints.login({ email, password });
+        const user = response.data?.user ?? null;
+        if (user) {
+          setUser(user);
+        }
+        toast.success(response.message || "Logged in successfully!");
+        router.push(redirect);
+        router.refresh();
+      } catch (err: unknown) {
+        let msg = "Invalid email or password";
+        if (axios.isAxiosError(err)) {
+          msg =
+            err.response?.data?.message ||
+            err.response?.data?.error ||
+            err.message ||
+            msg;
+        } else if (err instanceof Error) {
+          msg = err.message;
+        }
+        setError(msg);
+        toast.error(msg);
       }
-
-      // Update client-side auth context with the returned user
-      setUser(data.data.user);
-      router.push(redirect);
-      router.refresh();
     });
   }
 
