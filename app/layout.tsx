@@ -3,6 +3,7 @@ import "./globals.css";
 import { Navbar } from "@/components/general/Navbar";
 import { AuthProvider } from "@/components/general/AuthProvider";
 import { getServerSession } from "@/lib/auth";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Bloggr by Fenigma",
@@ -25,6 +26,7 @@ export default async function RootLayout({
             <Navbar user={user} />
             <main>{children}</main>
           </div>
+          <Toaster position="top-right" richColors />
         </AuthProvider>
       </body>
     </html>
