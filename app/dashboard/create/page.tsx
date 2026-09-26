@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CoverUploader } from "@/components/editor/CoverUploader";
 
 export default function CreatePostPage() {
   const router = useRouter();
@@ -112,14 +113,10 @@ export default function CreatePostPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="cover_image">Cover Image URL</Label>
-              <Input
-                id="cover_image"
-                name="cover_image"
-                type="url"
-                placeholder="https://example.com/image.jpg"
+              <Label>Cover Image</Label>
+              <CoverUploader
                 value={coverImage}
-                onChange={(e) => setCoverImage(e.target.value)}
+                onChange={setCoverImage}
                 disabled={isPending}
               />
             </div>
