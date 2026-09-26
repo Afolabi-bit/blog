@@ -6,11 +6,24 @@ export interface CreateCommentPayload {
   parent_id?: string;
 }
 
+export interface CommentsResponse {
+  comments: Comment[];
+  pagination?: {
+    limit: number;
+    has_next: boolean;
+    next_cursor?: string;
+    count?: number;
+  };
+}
+
 export const commentsEndpoints = {
-  getComments: async (postId: string) => {
-    const response = await apiClient.get<ApiResponse<Comment[]>>(
-      `/api/posts/${postId}/comments`,
-    );
+  getComments: async (
+    postId: string,
+    params?: { limit?: number; cursor?: string },
+  ) => {
+    const response = await apiClient.get<
+      ApiResponse<CommentsResponse | Comment[]>
+    >(`/api/posts/${postId}/comments`, { params });
     return response.data;
   },
 
