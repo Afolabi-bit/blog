@@ -1,21 +1,25 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import axios from "axios";
 import { buttonVariants } from "@/components/ui/button";
 import { BlogPostCard } from "@/components/general/BlogPostCard";
 import { getServerSession, getAccessToken } from "@/lib/auth";
+import { API_BASE_URL } from "@/lib/client";
 import type { Post, ApiResponse, PostsResponse } from "@/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
-
 async function getMyPosts(token: string): Promise<Post[]> {
-  const res = await fetch(`${API_URL}/api/posts/author/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-
-  if (!res.ok) return [];
-  const json: ApiResponse<PostsResponse> = await res.json();
-  return json.data?.posts ?? [];
+  try {
+    const { data } = await axios.get<ApiResponse<PostsResponse>>(
+      `${API_BASE_URL}/api/my-posts`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000,
+      },
+    );
+    return data.data?.posts ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export default async function DashboardPage() {
@@ -23,7 +27,7 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const token = await getAccessToken();
-  const posts = await getMyPosts(token!);
+  const posts = token ? await getMyPosts(token) : [];
 
   return (
     <div className="py-6">
