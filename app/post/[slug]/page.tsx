@@ -3,20 +3,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { Post, ApiResponse } from "@/lib/types";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+import { postsEndpoints } from "@/lib/endpoints";
+import type { Post } from "@/lib/types";
 
 async function getPost(slug: string): Promise<Post | null> {
-  const res = await fetch(`${API_URL}/api/posts/slug/${slug}`, {
-    next: { revalidate: 60 },
-  });
-
-  if (res.status === 404) return null;
-  if (!res.ok) return null;
-
-  const json: ApiResponse<Post> = await res.json();
-  return json.data ?? null;
+  try {
+    const data = await postsEndpoints.getPostBySlug(slug);
+    return data.data ?? null;
+  } catch {
+    return null;
+  }
 }
 
 type Params = Promise<{ slug: string }>;
