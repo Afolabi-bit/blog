@@ -1,21 +1,18 @@
 import { BlogPostCard } from "@/components/general/BlogPostCard";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Post, ApiResponse, PostsResponse } from "@/lib/types";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+import { postsEndpoints } from "@/lib/endpoints";
+import type { Post } from "@/lib/types";
 
 export const revalidate = 60;
 
 async function getPosts(): Promise<Post[]> {
-  const res = await fetch(`${API_URL}/api/posts?limit=12`, {
-    next: { revalidate: 60 },
-  });
-
-  if (!res.ok) return [];
-
-  const json: ApiResponse<PostsResponse> = await res.json();
-  return json.data?.posts ?? [];
+  try {
+    const data = await postsEndpoints.getPosts({ limit: 12 });
+    return data.data?.posts ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export default async function Home() {
