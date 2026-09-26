@@ -1,8 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
-import { createPost, type ActionState } from "@/app/actions";
-import { SubmitButton } from "@/components/general/SubmitButton";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
+import { postsEndpoints } from "@/lib/endpoints";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -15,15 +18,54 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function CreatePostPage() {
-  const [state, action] = useActionState<ActionState, FormData>(
-    createPost,
-    null,
-  );
+  const router = useRouter();
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [coverImage, setCoverImage] = useState("");
+  const [tags, setTags] = useState("");
+  const [status, setStatus] = useState<"draft" | "published">("draft");
 
-  const fieldErrors =
-    state?.error && typeof state.error === "object" ? state.error : {};
-  const globalError =
-    state?.error && typeof state.error === "string" ? state.error : null;
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    const parsedTags = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    startTransition(async () => {
+      try {
+        const response = await postsEndpoints.createPost({
+          title,
+          content,
+          cover_image: coverImage || undefined,
+          status,
+          tags: parsedTags,
+        });
+
+        toast.success(response.message || "Post created successfully!");
+        router.push("/dashboard");
+        router.refresh();
+      } catch (err: unknown) {
+        let msg = "Failed to create post";
+        if (axios.isAxiosError(err)) {
+          msg =
+            err.response?.data?.message ||
+            err.response?.data?.error ||
+            err.message ||
+            msg;
+        } else if (err instanceof Error) {
+          msg = err.message;
+        }
+        setError(msg);
+        toast.error(msg);
+      }
+    });
+  }
 
   return (
     <div className="py-6">
@@ -34,10 +76,10 @@ export default function CreatePostPage() {
         </CardHeader>
 
         <CardContent>
-          <form className="flex flex-col gap-5" action={action}>
-            {globalError && (
+          <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+            {error && (
               <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-                {globalError}
+                {error}
               </div>
             )}
 
@@ -48,11 +90,11 @@ export default function CreatePostPage() {
                 name="title"
                 type="text"
                 placeholder="My awesome post"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 required
+                disabled={isPending}
               />
-              {fieldErrors.title && (
-                <p className="text-xs text-red-600">{fieldErrors.title[0]}</p>
-              )}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -62,11 +104,11 @@ export default function CreatePostPage() {
                 name="content"
                 placeholder="Write your content here…"
                 rows={10}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
                 required
+                disabled={isPending}
               />
-              {fieldErrors.content && (
-                <p className="text-xs text-red-600">{fieldErrors.content[0]}</p>
-              )}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -76,12 +118,10 @@ export default function CreatePostPage() {
                 name="cover_image"
                 type="url"
                 placeholder="https://example.com/image.jpg"
+                value={coverImage}
+                onChange={(e) => setCoverImage(e.target.value)}
+                disabled={isPending}
               />
-              {fieldErrors.cover_image && (
-                <p className="text-xs text-red-600">
-                  {fieldErrors.cover_image[0]}
-                </p>
-              )}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -91,6 +131,9 @@ export default function CreatePostPage() {
                 name="tags"
                 type="text"
                 placeholder="golang, devops, architecture (comma-separated)"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                disabled={isPending}
               />
             </div>
 
@@ -99,7 +142,11 @@ export default function CreatePostPage() {
               <select
                 id="status"
                 name="status"
-                defaultValue="draft"
+                value={status}
+                onChange={(e) =>
+                  setStatus(e.target.value as "draft" | "published")
+                }
+                disabled={isPending}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
               >
                 <option value="draft">Draft</option>
@@ -107,7 +154,9 @@ export default function CreatePostPage() {
               </select>
             </div>
 
-            <SubmitButton />
+            <Button type="submit" className="w-fit" disabled={isPending}>
+              {isPending ? "Creating..." : "Create Post"}
+            </Button>
           </form>
         </CardContent>
       </Card>
