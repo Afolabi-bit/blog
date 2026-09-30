@@ -45,3 +45,4 @@ next-env.d.ts
 
 # local skills and agent config
 .agents/
+.claude/
