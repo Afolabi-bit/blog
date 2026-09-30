@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { postsEndpoints } from "@/lib/endpoints";
 import type { Post } from "@/lib/types";
 import { MarkdownRenderer } from "@/components/post/MarkdownRenderer";
@@ -40,11 +40,14 @@ export async function generateMetadata({
     };
   }
 
-  const snippet = stripMarkdown(post.content).slice(0, 160);
+  const snippet = post.excerpt || stripMarkdown(post.content).slice(0, 160);
 
   return {
     title: `${post.title} — Bloggr`,
     description: snippet || "Read full story on Bloggr.",
+    alternates: {
+      canonical: `/post/${post.slug}`,
+    },
     openGraph: {
       title: post.title,
       description: snippet,
@@ -70,7 +73,14 @@ export default async function PostPage({ params }: PostPageProps) {
     return notFound();
   }
 
-  const readingTime = calculateReadingTime(post.content);
+  // ART-1: Canonical slug redirect
+  if (post.slug !== slug) {
+    redirect(`/post/${post.slug}`);
+  }
+
+  const readingTime = post.read_time
+    ? `${post.read_time} min read`
+    : calculateReadingTime(post.content);
   const formattedDate = formatDate(post.created_at);
 
   const authorInitials = post.author_name
@@ -121,15 +131,18 @@ export default async function PostPage({ params }: PostPageProps) {
 
         {/* Author & Meta Row */}
         <div className="flex flex-col gap-4 border-y border-border/50 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
+          <Link
+            href={`/authors/${post.author_id}`}
+            className="flex items-center gap-3 group/author hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-xs"
+          >
             <Avatar className="size-11 border border-border">
               <AvatarFallback className="bg-muted text-sm font-semibold text-foreground">
                 {authorInitials}
               </AvatarFallback>
             </Avatar>
-            <div className="flex flex-col">
+            <div className="flex flex-col text-left">
               <div className="flex items-center gap-2">
-                <span className="font-medium text-foreground">
+                <span className="font-medium text-foreground group-hover/author:text-accent-solid transition-colors">
                   {post.author_name}
                 </span>
                 <Badge
@@ -151,12 +164,13 @@ export default async function PostPage({ params }: PostPageProps) {
                 </span>
               </div>
             </div>
-          </div>
+          </Link>
 
           <ArticleActionBar
             postId={post.id}
             initialLikesCount={post.likes_count ?? 0}
             commentsCount={post.comments_count ?? 0}
+            initialLiked={Boolean(post.liked_by_me)}
           />
         </div>
       </header>
@@ -193,6 +207,7 @@ export default async function PostPage({ params }: PostPageProps) {
           postId={post.id}
           initialLikesCount={post.likes_count ?? 0}
           commentsCount={post.comments_count ?? 0}
+          initialLiked={Boolean(post.liked_by_me)}
         />
       </div>
 
@@ -200,6 +215,27 @@ export default async function PostPage({ params }: PostPageProps) {
       <div id="comments" className="mt-12 scroll-mt-24">
         <CommentSection postId={post.id} postAuthorId={post.author_id} />
       </div>
+
+      {/* JSON-LD Structured Data for Article / SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            headline: post.title,
+            description: post.excerpt || stripMarkdown(post.content).slice(0, 160),
+            image: post.cover_image ? [post.cover_image] : undefined,
+            datePublished: post.created_at,
+            dateModified: post.updated_at || post.created_at,
+            author: {
+              "@type": "Person",
+              name: post.author_name,
+              url: `/authors/${post.author_id}`,
+            },
+          }),
+        }}
+      />
     </article>
   );
 }
