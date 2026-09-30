@@ -12,12 +12,12 @@ export const LoginSchema = z.object({
 export type LoginInput = z.infer<typeof LoginSchema>;
 
 export const RegisterSchema = z.object({
-  firstName: z
+  first_name: z
     .string()
     .trim()
     .min(3, "First name must be at least 3 characters")
     .max(50, "First name must be at most 50 characters"),
-  lastName: z
+  last_name: z
     .string()
     .trim()
     .min(3, "Last name must be at least 3 characters")
@@ -31,7 +31,6 @@ export const RegisterSchema = z.object({
     .string()
     .min(6, "Password must be at least 6 characters")
     .max(100, "Password must be at most 100 characters"),
-  role: z.enum(["reader", "author", "admin"]).optional(),
 });
 
 export type RegisterInput = z.infer<typeof RegisterSchema>;
