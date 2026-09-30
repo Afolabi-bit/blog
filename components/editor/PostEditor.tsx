@@ -9,6 +9,7 @@ import { postsEndpoints } from "@/lib/endpoints";
 import { CreatePostSchema } from "@/lib/validations";
 import { MarkdownRenderer } from "@/components/post/MarkdownRenderer";
 import { CoverUploader } from "@/components/editor/CoverUploader";
+import { TiptapEditor } from "@/components/editor/TiptapEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
