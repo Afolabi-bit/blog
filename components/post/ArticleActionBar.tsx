@@ -10,12 +10,14 @@ interface ArticleActionBarProps {
   postId: string;
   initialLikesCount: number;
   commentsCount: number;
+  initialLiked?: boolean;
 }
 
 export function ArticleActionBar({
   postId,
   initialLikesCount,
   commentsCount,
+  initialLiked = false,
 }: ArticleActionBarProps) {
   const [copied, setCopied] = useState(false);
 
@@ -41,7 +43,11 @@ export function ArticleActionBar({
 
   return (
     <div className="flex items-center gap-2">
-      <LikeButton postId={postId} initialLikesCount={initialLikesCount} />
+      <LikeButton
+        postId={postId}
+        initialLikesCount={initialLikesCount}
+        initialLiked={initialLiked}
+      />
 
       <Button
         variant="outline"
