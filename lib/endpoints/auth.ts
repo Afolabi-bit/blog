@@ -7,11 +7,12 @@ export interface LoginPayload {
 }
 
 export interface RegisterPayload {
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   email: string;
   password: string;
-  role?: "reader" | "author" | "admin";
+  firstName?: string;
+  lastName?: string;
 }
 
 export interface RefreshPayload {
