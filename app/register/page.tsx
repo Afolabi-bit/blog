@@ -31,15 +31,12 @@ export default function RegisterPage() {
     lastName: "",
     email: "",
     password: "",
-    role: "reader" as "reader" | "author",
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (fieldErrors[name]) {
@@ -77,7 +74,7 @@ export default function RegisterPage() {
           setUser(user);
         }
         toast.success(response.message || "Account created successfully!");
-        router.push(result.data.role === "author" ? "/dashboard" : "/");
+        router.push(user?.role === "author" ? "/dashboard" : "/");
         router.refresh();
       } catch (err: unknown) {
         let msg = "Registration failed. Please check your information and try again.";
@@ -219,23 +216,6 @@ export default function RegisterPage() {
                   {fieldErrors.password}
                 </p>
               )}
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="role" className="text-sm font-medium text-foreground">
-                I want to join primarily as
-              </Label>
-              <select
-                id="role"
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                disabled={isPending}
-                className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="reader">Reader — Read, bookmark, and discuss articles</option>
-                <option value="author">Author — Publish articles and manage studio</option>
-              </select>
             </div>
 
             <Button
