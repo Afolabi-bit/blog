@@ -27,6 +27,25 @@ async function getPostsData(tag?: string, search?: string) {
   }
 }
 
+async function getFeaturedData() {
+  try {
+    const data = await postsEndpoints.getFeaturedPost();
+    return data.data ?? null;
+  } catch {
+    // 404 means no post is currently featured - hide hero gracefully per FEED-2
+    return null;
+  }
+}
+
+async function getTagsData() {
+  try {
+    const data = await postsEndpoints.getTags();
+    return data.data?.tags ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export default async function HomePage({ searchParams }: PageProps) {
   const params = await searchParams;
   const activeTag = params.tag;
@@ -48,23 +67,33 @@ async function FeedContent({
   activeTag?: string;
   activeSearch?: string;
 }) {
-  const posts = await getPostsData(activeTag, activeSearch);
-
-  // Extract unique tags from loaded posts, plus canonical tags
-  const defaultTags = ["golang", "react", "architecture", "typescript", "systems", "web"];
-  const dynamicTags = Array.from(
-    new Set(posts.flatMap((p) => p.tags || [])),
-  ).filter(Boolean);
-  const combinedTags = Array.from(new Set([...dynamicTags, ...defaultTags])).slice(0, 8);
-
   const hasFilter = Boolean(activeTag || activeSearch);
-  const leadPost = !hasFilter && posts.length > 0 ? posts[0] : null;
-  const gridPosts = !hasFilter && posts.length > 0 ? posts.slice(1) : posts;
+
+  const [posts, featuredPost, tagsData] = await Promise.all([
+    getPostsData(activeTag, activeSearch),
+    !hasFilter ? getFeaturedData() : Promise.resolve(null),
+    getTagsData(),
+  ]);
+
+  // Use tags from /api/tags, fallback to unique post tags if tags endpoint returns empty
+  const tags =
+    tagsData.length > 0
+      ? tagsData
+      : Array.from(new Set(posts.flatMap((p) => p.tags || []))).map((t) => ({
+          name: t,
+          count: 0,
+        }));
+
+  // If featuredPost is rendered, omit it from the grid below to avoid immediate duplicate
+  const gridPosts =
+    featuredPost && !hasFilter
+      ? posts.filter((p) => p.id !== featuredPost.id)
+      : posts;
 
   return (
     <div>
-      {/* Featured Lead Story (shown when browsing root feed without filters) */}
-      {leadPost && <FeaturedPostHero post={leadPost} />}
+      {/* Featured Lead Story (shown when browsing root feed without filters and a featured post exists) */}
+      {featuredPost && <FeaturedPostHero post={featuredPost} />}
 
       {/* Section Header & Tag Filter Rail */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
@@ -89,7 +118,7 @@ async function FeedContent({
         </Button>
       </div>
 
-      <TagRail tags={combinedTags} activeTag={activeTag} />
+      <TagRail tags={tags} activeTag={activeTag} />
 
       {/* Empty State */}
       {posts.length === 0 && (
