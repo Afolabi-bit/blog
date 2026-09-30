@@ -1,5 +1,13 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/auth";
+import { Badge } from "@/components/ui/badge";
+import { Shield } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Admin Console — Bloggr",
+  description: "Moderation console for author requests and platform articles",
+};
 
 export default async function AdminLayout({
   children,
@@ -14,19 +22,25 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="py-6">
-      <div className="mb-6 pb-4 border-b border-gray-200 flex items-center justify-between">
+    <div className="py-6 flex flex-col gap-6">
+      <div className="flex flex-col gap-2 border-b border-border/60 pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold text-gray-900">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-7 items-center justify-center rounded-md bg-accent-solid text-white">
+              <Shield className="size-4" />
+            </div>
+            <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Admin Moderation Console
             </h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-purple-100 text-purple-800 border border-purple-200">
-              Admin Only
-            </span>
+            <Badge
+              variant="outline"
+              className="font-mono text-[10px] uppercase tracking-wider font-semibold py-0.5 px-2 bg-accent-solid/10 text-accent-solid border-accent-solid/30"
+            >
+              System Admin
+            </Badge>
           </div>
-          <p className="text-xs text-gray-500 mt-1">
-            Review author promotion requests and moderate system-wide publications
+          <p className="text-sm text-muted-foreground mt-1">
+            Review author promotion applications and moderate system-wide articles.
           </p>
         </div>
       </div>
