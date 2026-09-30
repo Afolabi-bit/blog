@@ -161,10 +161,12 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Do not attempt refresh if the failed request was the refresh or login request itself
+    // Do not attempt refresh if the failed request was the refresh or login request itself,
+    // or change-password (where 401 indicates incorrect current password, per B16)
     if (
       originalRequest.url?.includes("/auth/login") ||
-      originalRequest.url?.includes("/auth/refresh")
+      originalRequest.url?.includes("/auth/refresh") ||
+      originalRequest.url?.includes("/user/change-password")
     ) {
       return Promise.reject(error);
     }
@@ -200,6 +202,9 @@ apiClient.interceptors.response.use(
       }
 
       setStoredTokens(newAccessToken, newRefreshToken);
+      if (data.data?.user) {
+        setStoredUser(data.data.user);
+      }
 
       // Replay failed requests
       const queued = [...failedQueue];
