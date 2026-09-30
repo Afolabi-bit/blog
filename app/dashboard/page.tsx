@@ -1,11 +1,19 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import axios from "axios";
-import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AuthorPostList } from "@/components/dashboard/AuthorPostList";
 import { getServerSession, getAccessToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/client";
 import type { Post, ApiResponse, PostsResponse } from "@/lib/types";
+import { Plus, Sparkles } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Author Studio — Bloggr",
+  description: "Manage your published stories and drafts",
+};
 
 async function getMyPosts(token: string): Promise<Post[]> {
   try {
@@ -30,32 +38,44 @@ export default async function DashboardPage() {
   const posts = token ? await getMyPosts(token) : [];
 
   return (
-    <div className="py-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="py-6 flex flex-col gap-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Author Studio</h2>
-          <p className="text-xs text-gray-500 mt-1">Manage, draft, and publish your articles</p>
+          <h1 className="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Author Studio
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Write, publish, and track engagement across your articles.
+          </p>
         </div>
+
         {(user.role === "author" || user.role === "admin") && (
-          <Link className={buttonVariants()} href="/dashboard/create">
-            + New post
-          </Link>
+          <Button asChild className="gap-2 bg-accent-solid text-white hover:bg-accent-solid/90">
+            <Link href="/dashboard/create">
+              <Plus className="size-4" />
+              <span>New Article</span>
+            </Link>
+          </Button>
         )}
       </div>
 
       {user.role === "reader" && (
-        <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4">
-          <p className="text-sm text-orange-800">
-            You&apos;re currently a reader.{" "}
+        <Alert className="border-accent-warm/30 bg-accent-warm/5">
+          <Sparkles className="size-4 text-accent-warm" />
+          <AlertTitle className="text-foreground font-semibold">
+            Reader Account
+          </AlertTitle>
+          <AlertDescription className="text-muted-foreground text-sm">
+            You are currently browsing as a reader.{" "}
             <Link
               href="/settings/author-request"
-              className="font-semibold underline"
+              className="font-medium text-accent-solid underline hover:opacity-80"
             >
               Apply to become an author
             </Link>{" "}
-            to start publishing.
-          </p>
-        </div>
+            to start publishing your own articles.
+          </AlertDescription>
+        </Alert>
       )}
 
       <AuthorPostList initialPosts={posts} />
