@@ -61,4 +61,12 @@ export const adminEndpoints = {
     );
     return response.data;
   },
+
+  setFeaturedPost: async (id: string, is_featured: boolean) => {
+    const response = await apiClient.patch<ApiResponse<Post>>(
+      `/api/admin/posts/${id}/feature`,
+      { is_featured },
+    );
+    return response.data;
+  },
 };
