@@ -67,14 +67,42 @@ export interface Post {
   author_name: string;
   title: string;
   slug: string;
+  previous_slugs?: string[];
+  excerpt?: string;
   content: string;
   cover_image?: string;
   status: PostStatus;
   tags: string[];
+  read_time?: number;
   likes_count: number;
   comments_count: number;
+  liked_by_me?: boolean;
+  is_featured?: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface AuthorProfile {
+  id: string;
+  full_name: string;
+  bio?: string;
+  avatar_url?: string;
+  role: UserRole;
+  total_posts: number;
+  created_at: string;
+}
+
+export interface TagItem {
+  name: string;
+  count: number;
+}
+
+export interface AuthorStats {
+  total_posts: number;
+  published_posts: number;
+  draft_posts: number;
+  total_likes: number;
+  total_comments: number;
 }
 
 export interface PostsResponse {
