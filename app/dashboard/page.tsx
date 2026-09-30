@@ -6,7 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AuthorPostList } from "@/components/dashboard/AuthorPostList";
 import { getServerSession, getAccessToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/client";
-import type { Post, ApiResponse, PostsResponse } from "@/lib/types";
+import type { Post, ApiResponse, PostsResponse, AuthorStats } from "@/lib/types";
 import { Plus, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 
@@ -30,12 +30,29 @@ async function getMyPosts(token: string): Promise<Post[]> {
   }
 }
 
+async function getMyStats(token: string): Promise<AuthorStats | undefined> {
+  try {
+    const { data } = await axios.get<ApiResponse<AuthorStats>>(
+      `${API_BASE_URL}/api/my-posts/stats`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000,
+      },
+    );
+    return data.data;
+  } catch {
+    return undefined;
+  }
+}
+
 export default async function DashboardPage() {
   const user = await getServerSession();
   if (!user) redirect("/login");
 
   const token = await getAccessToken();
-  const posts = token ? await getMyPosts(token) : [];
+  const [posts, stats] = token
+    ? await Promise.all([getMyPosts(token), getMyStats(token)])
+    : [[], undefined];
 
   return (
     <div className="py-6 flex flex-col gap-6">
@@ -78,7 +95,7 @@ export default async function DashboardPage() {
         </Alert>
       )}
 
-      <AuthorPostList initialPosts={posts} />
+      <AuthorPostList initialPosts={posts} initialStats={stats} />
     </div>
   );
 }
