@@ -6,7 +6,8 @@ import axios from "axios";
 import { toast } from "sonner";
 import { userEndpoints } from "@/lib/endpoints";
 import { useAuth } from "@/components/general/AuthProvider";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { AuthorRequestSchema } from "@/lib/validations";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -17,11 +18,28 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { AuthorRequest } from "@/lib/types";
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  FileCheck,
+  Loader2,
+  PenSquare,
+  Plus,
+  Send,
+  Sparkles,
+  Trash2,
+  XCircle,
+} from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 export default function AuthorRequestPage() {
   const { user } = useAuth();
-
   const [request, setRequest] = useState<AuthorRequest | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,9 +47,11 @@ export default function AuthorRequestPage() {
   const [bio, setBio] = useState("");
   const [motivation, setMotivation] = useState("");
   const [sampleLinks, setSampleLinks] = useState<string[]>([""]);
-
-  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const isAlreadyAuthor = user?.role === "author" || user?.role === "admin";
 
   const fetchRequestStatus = async () => {
     try {
@@ -41,7 +61,6 @@ export default function AuthorRequestPage() {
         setRequest(res.data);
       }
     } catch (err: unknown) {
-      // 404 means no request submitted yet
       if (axios.isAxiosError(err) && err.response?.status === 404) {
         setRequest(null);
       }
@@ -55,6 +74,10 @@ export default function AuthorRequestPage() {
   }, []);
 
   const handleAddLink = () => {
+    if (sampleLinks.length >= 5) {
+      toast.info("Maximum 5 portfolio links allowed");
+      return;
+    }
     setSampleLinks([...sampleLinks, ""]);
   };
 
@@ -70,21 +93,28 @@ export default function AuthorRequestPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setFormError(null);
+    setFieldErrors({});
 
     const validLinks = sampleLinks.map((l) => l.trim()).filter(Boolean);
 
-    if (bio.trim().length < 10) {
-      setError("Bio must be at least 10 characters.");
-      return;
-    }
+    const result = AuthorRequestSchema.safeParse({
+      bio: bio.trim(),
+      sample_links: validLinks,
+      motivation: motivation.trim(),
+    });
 
-    if (motivation.trim().length < 10) {
-      setError("Motivation must be at least 10 characters.");
+    if (!result.success) {
+      const errs: Record<string, string> = {};
+      for (const issue of result.error.issues) {
+        if (issue.path[0]) errs[String(issue.path[0])] = issue.message;
+      }
+      setFieldErrors(errs);
       return;
     }
 
     startTransition(async () => {
+      const toastId = toast.loading("Submitting author application…");
       try {
         const res = await userEndpoints.applyForAuthor({
           bio: bio.trim(),
@@ -93,198 +123,337 @@ export default function AuthorRequestPage() {
         });
 
         if (res.status === "success" && res.data) {
-          toast.success("Author application submitted successfully!");
+          toast.success("Author application submitted successfully!", {
+            id: toastId,
+          });
           setRequest(res.data);
         } else {
-          toast.error(res.message || "Failed to submit application");
+          toast.error(res.message || "Failed to submit application", {
+            id: toastId,
+          });
         }
       } catch (err: unknown) {
         let msg = "Failed to submit application";
         if (axios.isAxiosError(err)) {
           msg = err.response?.data?.message || err.message || msg;
         }
-        setError(msg);
-        toast.error(msg);
+        setFormError(msg);
+        toast.error(msg, { id: toastId });
       }
     });
   };
 
+  if (isAlreadyAuthor) {
+    return (
+      <div className="mx-auto max-w-xl py-12 text-center">
+        <Card className="border-border bg-card p-8">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-accent-solid/10 text-accent-solid mb-4">
+            <CheckCircle2 className="size-6" />
+          </div>
+          <h2 className="font-serif text-2xl font-bold text-foreground">
+            You are an Author!
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
+            You already have active author publishing privileges on Bloggr. You
+            can create, draft, and publish articles directly from your studio.
+          </p>
+          <div className="mt-6">
+            <Button asChild className="gap-2 bg-accent-solid text-white hover:bg-accent-solid/90">
+              <Link href="/dashboard">
+                <PenSquare className="size-4" />
+                <span>Go to Author Studio</span>
+              </Link>
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
-      <div className="py-12 max-w-xl mx-auto">
-        <div className="h-8 w-60 bg-gray-100 rounded-md animate-pulse mb-6" />
-        <div className="h-64 bg-gray-50 border border-gray-100 rounded-xl animate-pulse" />
+      <div className="mx-auto max-w-2xl py-10 flex flex-col gap-4">
+        <div className="h-8 w-48 bg-muted rounded-md animate-pulse" />
+        <div className="h-64 bg-card rounded-xl border border-border animate-pulse" />
       </div>
     );
   }
 
-  // If already an author or admin
-  if (user?.role === "author" || user?.role === "admin") {
-    return (
-      <div className="py-12 max-w-xl mx-auto">
-        <Card className="border-emerald-200 bg-emerald-50/50">
-          <CardHeader>
-            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <CardTitle className="text-emerald-900">You Are an Author!</CardTitle>
-            <CardDescription className="text-emerald-700">
-              Your account has full author privileges to write, edit, and publish articles.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/dashboard" className={buttonVariants()}>
-              Go to Author Studio →
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Pending application banner
-  if (request?.status === "pending") {
-    return (
-      <div className="py-12 max-w-xl mx-auto">
-        <Card className="border-amber-200 bg-amber-50/50">
-          <CardHeader>
-            <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-2">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <CardTitle className="text-amber-900">Application Under Review</CardTitle>
-            <CardDescription className="text-amber-700">
-              We have received your application to become an author. Our editorial team will review your submission shortly.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-white p-4 rounded-lg border border-amber-200 text-sm space-y-2">
-              <p className="text-gray-600">
-                <strong className="text-gray-900">Submitted:</strong>{" "}
-                {new Intl.DateTimeFormat("en-US", {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                }).format(new Date(request.created_at))}
-              </p>
-              <p className="text-gray-600">
-                <strong className="text-gray-900">Bio:</strong> {request.bio}
-              </p>
-            </div>
-            <Link href="/" className={buttonVariants({ variant: "outline" })}>
-              Return to Home
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Application form (if no active request or previously rejected)
   return (
-    <div className="py-8 max-w-xl mx-auto">
-      <Card>
-        <CardHeader>
-          <CardTitle>Become an Author</CardTitle>
-          <CardDescription>
-            Apply for publishing privileges to write articles, build an audience, and contribute to the community.
-          </CardDescription>
-        </CardHeader>
+    <div className="mx-auto max-w-2xl py-6 flex flex-col gap-6">
+      <div>
+        <h1 className="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Become an Author
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Apply for author privileges to write, draft, and publish articles on Bloggr.
+        </p>
+      </div>
 
-        <CardContent>
-          {request?.status === "rejected" && (
-            <div className="mb-6 rounded-lg bg-rose-50 border border-rose-200 p-4 text-sm text-rose-800">
-              <p className="font-semibold mb-1">Previous Application Notice</p>
-              <p className="text-rose-700 mb-2">
-                Your previous application was not approved.
-              </p>
-              {request.review_notes && (
-                <p className="italic bg-white/70 p-2.5 rounded border border-rose-100">
-                  Feedback: &ldquo;{request.review_notes}&rdquo;
+      {/* Existing Application Status Card */}
+      {request ? (
+        <Card className="border-border bg-card overflow-hidden">
+          <CardHeader className="border-b border-border/50 bg-muted/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileCheck className="size-5 text-accent-solid" />
+                <CardTitle className="font-serif text-lg font-bold">
+                  Application Status
+                </CardTitle>
+              </div>
+
+              <Badge
+                variant="outline"
+                className={`font-mono text-xs uppercase tracking-wider py-1 px-2.5 font-semibold ${
+                  request.status === "pending"
+                    ? "border-status-warning/40 bg-status-warning/10 text-status-warning"
+                    : request.status === "approved"
+                      ? "border-status-success/40 bg-status-success/10 text-status-success"
+                      : "border-status-danger/40 bg-status-danger/10 text-status-danger"
+                }`}
+              >
+                {request.status === "pending" && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="size-3" />
+                    <span>Under Review</span>
+                  </span>
+                )}
+                {request.status === "approved" && (
+                  <span className="flex items-center gap-1">
+                    <CheckCircle2 className="size-3" />
+                    <span>Approved</span>
+                  </span>
+                )}
+                {request.status === "rejected" && (
+                  <span className="flex items-center gap-1">
+                    <XCircle className="size-3" />
+                    <span>Declined</span>
+                  </span>
+                )}
+              </Badge>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-6 flex flex-col gap-5">
+            {request.status === "pending" && (
+              <Alert className="border-status-warning/30 bg-status-warning/5">
+                <Clock className="size-4 text-status-warning" />
+                <AlertTitle className="text-foreground font-semibold">
+                  Application Under Review
+                </AlertTitle>
+                <AlertDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Thank you for applying to become an author on Bloggr! Our editorial team is currently reviewing your profile and portfolio samples. We typically respond within 24-48 hours.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {request.status === "approved" && (
+              <Alert className="border-status-success/30 bg-status-success/5">
+                <CheckCircle2 className="size-4 text-status-success" />
+                <AlertTitle className="text-status-success font-semibold">
+                  Application Approved!
+                </AlertTitle>
+                <AlertDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Congratulations! Your application has been approved. You now have access to the Author Studio to create and publish articles.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {request.status === "rejected" && (
+              <Alert variant="destructive">
+                <AlertCircle className="size-4" />
+                <AlertTitle>Application Declined</AlertTitle>
+                <AlertDescription className="text-xs mt-1 leading-relaxed">
+                  {request.review_notes ||
+                    "Thank you for your interest. Unfortunately, your application was not approved at this time. You may re-apply with updated portfolio work."}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 p-4 text-xs">
+              <div>
+                <span className="font-semibold text-foreground">Submitted on: </span>
+                <span className="text-muted-foreground">
+                  {formatDate(request.created_at)}
+                </span>
+              </div>
+
+              <div>
+                <span className="font-semibold text-foreground">Bio: </span>
+                <p className="mt-1 text-muted-foreground leading-relaxed">
+                  {request.bio}
                 </p>
+              </div>
+
+              <div>
+                <span className="font-semibold text-foreground">Motivation: </span>
+                <p className="mt-1 text-muted-foreground leading-relaxed">
+                  {request.motivation}
+                </p>
+              </div>
+
+              {request.sample_links && request.sample_links.length > 0 && (
+                <div>
+                  <span className="font-semibold text-foreground">Portfolio Links:</span>
+                  <ul className="mt-1 flex flex-col gap-1 pl-4 list-disc">
+                    {request.sample_links.map((link) => (
+                      <li key={link}>
+                        <a
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-accent-solid hover:underline flex items-center gap-1 inline-flex"
+                        >
+                          <span>{link}</span>
+                          <ExternalLink className="size-3" />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
-              <p className="mt-2 text-xs">
-                Feel free to update your application details below and reapply.
-              </p>
-            </div>
-          )}
-
-          {error && (
-            <div className="mb-6 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="bio">Author Biography</Label>
-              <Textarea
-                id="bio"
-                placeholder="Tell us about your background, expertise, and what you write about (min 10 characters)..."
-                rows={3}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                required
-                disabled={isPending}
-              />
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Sample Work & Portfolio Links</Label>
-                <button
-                  type="button"
-                  onClick={handleAddLink}
-                  className="text-xs font-semibold text-[#ef862b] hover:underline"
-                >
-                  + Add URL
-                </button>
+            {request.status === "approved" && (
+              <Button asChild className="w-fit gap-2 bg-accent-solid text-white hover:bg-accent-solid/90">
+                <Link href="/dashboard">
+                  <span>Enter Author Studio</span>
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        /* Application Form */
+        <Card className="border-border bg-card">
+          <CardHeader>
+            <CardTitle className="font-serif text-xl font-bold flex items-center gap-2">
+              <Sparkles className="size-5 text-accent-warm" />
+              <span>Author Application</span>
+            </CardTitle>
+            <CardDescription>
+              Tell us about your background, expertise, and what topics you plan to write about.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              {formError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="size-4" />
+                  <AlertTitle>Application Error</AlertTitle>
+                  <AlertDescription>{formError}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bio">Author Biography</Label>
+                <Textarea
+                  id="bio"
+                  placeholder="Senior software engineer with 5+ years building backend microservices in Go and distributed database architectures…"
+                  rows={4}
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  disabled={isPending}
+                  aria-invalid={Boolean(fieldErrors.bio)}
+                  className="bg-background text-sm resize-none"
+                  required
+                />
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>Min. 10 characters</span>
+                  <span>{bio.length}/1000</span>
+                </div>
+                {fieldErrors.bio && (
+                  <p className="text-xs text-destructive">{fieldErrors.bio}</p>
+                )}
               </div>
-              <div className="space-y-2">
-                {sampleLinks.map((link, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <Input
-                      type="url"
-                      placeholder="https://github.com/... or https://dev.to/..."
-                      value={link}
-                      onChange={(e) => handleLinkChange(idx, e.target.value)}
-                      disabled={isPending}
-                    />
-                    {sampleLinks.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveLink(idx)}
-                        className="text-xs text-red-500 hover:text-red-700 px-2 py-1"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                ))}
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="motivation">Motivation & Writing Topics</Label>
+                <Textarea
+                  id="motivation"
+                  placeholder="I want to share deep dives on Go concurrency patterns, benchmark analysis, and production postmortems with the engineering community…"
+                  rows={4}
+                  value={motivation}
+                  onChange={(e) => setMotivation(e.target.value)}
+                  disabled={isPending}
+                  aria-invalid={Boolean(fieldErrors.motivation)}
+                  className="bg-background text-sm resize-none"
+                  required
+                />
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>Min. 10 characters</span>
+                  <span>{motivation.length}/2000</span>
+                </div>
+                {fieldErrors.motivation && (
+                  <p className="text-xs text-destructive">{fieldErrors.motivation}</p>
+                )}
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="motivation">Motivation</Label>
-              <Textarea
-                id="motivation"
-                placeholder="Why do you want to write on this platform? (min 10 characters)..."
-                rows={3}
-                value={motivation}
-                onChange={(e) => setMotivation(e.target.value)}
-                required
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <Label>Sample Writing / Portfolio Links</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleAddLink}
+                    disabled={isPending || sampleLinks.length >= 5}
+                    className="h-7 gap-1 text-xs text-accent-solid hover:text-accent-solid"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Add Link</span>
+                  </Button>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {sampleLinks.map((link, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <Input
+                        type="url"
+                        placeholder="https://github.com/username or blog article URL…"
+                        value={link}
+                        onChange={(e) => handleLinkChange(idx, e.target.value)}
+                        disabled={isPending}
+                        className="bg-background text-xs"
+                      />
+                      {sampleLinks.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveLink(idx)}
+                          className="size-8 text-muted-foreground hover:text-destructive"
+                          aria-label="Remove link"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {fieldErrors.sample_links && (
+                  <p className="text-xs text-destructive">{fieldErrors.sample_links}</p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
                 disabled={isPending}
-              />
-            </div>
-
-            <Button type="submit" disabled={isPending} className="w-full">
-              {isPending ? "Submitting Application..." : "Submit Author Application"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+                className="w-fit mt-2 gap-2 bg-accent-solid text-white hover:bg-accent-solid/90"
+              >
+                {isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Send className="size-4" />
+                )}
+                <span>Submit Application</span>
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
