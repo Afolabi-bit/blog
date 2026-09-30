@@ -46,3 +46,7 @@ next-env.d.ts
 # local skills and agent config
 .agents/
 .claude/
+
+# documentation / planning (local only)
+plan.md
+FRONTEND_GUIDE.md
