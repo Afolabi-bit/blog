@@ -6,6 +6,8 @@ import axios from "axios";
 import { toast } from "sonner";
 import { likesEndpoints } from "@/lib/endpoints";
 import { getStoredAccessToken } from "@/lib/client";
+import { Button } from "@/components/ui/button";
+import { Heart } from "lucide-react";
 
 interface LikeButtonProps {
   postId: string;
@@ -34,7 +36,7 @@ export function LikeButton({ postId, initialLikesCount }: LikeButtonProps) {
         }
       })
       .catch(() => {
-        // Silently fall back to initial props if unauthenticated or error
+        // Silently fall back to initial props
       });
 
     return () => {
@@ -45,9 +47,9 @@ export function LikeButton({ postId, initialLikesCount }: LikeButtonProps) {
   const handleToggleLike = async () => {
     const token = getStoredAccessToken();
     if (!token) {
-      toast.error("Please log in to like this post", {
+      toast.error("Please sign in to like this post", {
         action: {
-          label: "Login",
+          label: "Sign in",
           onClick: () => router.push("/login"),
         },
       });
@@ -89,31 +91,26 @@ export function LikeButton({ postId, initialLikesCount }: LikeButtonProps) {
   };
 
   return (
-    <button
+    <Button
+      variant="outline"
+      size="sm"
       onClick={handleToggleLike}
       disabled={loading}
-      aria-label={liked ? "Unlike post" : "Like post"}
-      className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border ${
+      aria-pressed={liked}
+      aria-label={liked ? `Unlike article, current likes ${likesCount}` : `Like article, current likes ${likesCount}`}
+      className={`h-8 gap-2 rounded-full border px-3 text-xs font-medium transition-all duration-200 ${
         liked
-          ? "bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100 shadow-sm"
-          : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
+          ? "border-accent-warm/40 bg-accent-warm/10 text-accent-warm hover:bg-accent-warm/15 hover:text-accent-warm"
+          : "border-border text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground"
       }`}
     >
-      <svg
-        className={`w-4 h-4 transition-transform duration-200 ${
-          liked ? "fill-rose-500 scale-110" : "fill-none stroke-current"
+      <Heart
+        className={`size-3.5 transition-transform duration-200 ${
+          liked ? "scale-110 fill-accent-warm text-accent-warm" : ""
         }`}
-        viewBox="0 0 24 24"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
-        />
-      </svg>
+      />
       <span>{likesCount}</span>
       <span className="sr-only">likes</span>
-    </button>
+    </Button>
   );
 }
