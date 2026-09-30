@@ -12,9 +12,11 @@ interface FeaturedPostHeroProps {
 }
 
 export function FeaturedPostHero({ post }: FeaturedPostHeroProps) {
-  const readingTime = calculateReadingTime(post.content);
+  const readingTime = post.read_time
+    ? `${post.read_time} min read`
+    : calculateReadingTime(post.content || "");
   const formattedDate = formatDate(post.created_at);
-  const plainExcerpt = stripMarkdown(post.content);
+  const plainExcerpt = post.excerpt || stripMarkdown(post.content || "");
 
   const authorInitials = post.author_name
     ? post.author_name
@@ -78,14 +80,17 @@ export function FeaturedPostHero({ post }: FeaturedPostHeroProps) {
 
           <div className="mt-6 flex flex-col gap-4 border-t border-border/60 pt-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
+              <Link
+                href={`/authors/${post.author_id}`}
+                className="flex items-center gap-2.5 group/author hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-xs"
+              >
                 <Avatar className="size-8 border border-border">
                   <AvatarFallback className="bg-muted text-xs font-semibold text-foreground">
                     {authorInitials}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-foreground">
+                <div className="flex flex-col text-left">
+                  <span className="text-sm font-medium text-foreground group-hover/author:text-accent-solid transition-colors">
                     {post.author_name}
                   </span>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -94,11 +99,15 @@ export function FeaturedPostHero({ post }: FeaturedPostHeroProps) {
                     <span>{readingTime}</span>
                   </div>
                 </div>
-              </div>
+              </Link>
 
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Heart className="size-3.5" />
+                <div
+                  className={`flex items-center gap-1 ${
+                    post.liked_by_me ? "text-red-500 font-medium" : ""
+                  }`}
+                >
+                  <Heart className={`size-3.5 ${post.liked_by_me ? "fill-red-500" : ""}`} />
                   <span>{post.likes_count}</span>
                 </div>
                 <div className="flex items-center gap-1">
