@@ -1,22 +1,50 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import axios from "axios";
 import { toast } from "sonner";
 import { adminEndpoints } from "@/lib/endpoints";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
-  CardDescription,
+  CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { AuthorRequest, Post } from "@/lib/types";
+import {
+  Check,
+  ExternalLink,
+  FileText,
+  Heart,
+  Loader2,
+  MessageSquare,
+  Search,
+  Trash2,
+  UserCheck,
+  X,
+} from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<"requests" | "posts">("requests");
+  const [activeTab, setActiveTab] = useState<string>("requests");
 
   // Author Requests state
   const [requests, setRequests] = useState<AuthorRequest[]>([]);
@@ -28,17 +56,19 @@ export default function AdminPage() {
   // Posts state
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
-  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [postSearch, setPostSearch] = useState("");
+  const [postToDelete, setPostToDelete] = useState<Post | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchRequests = async (status?: string) => {
+  const fetchRequests = useCallback(async (status?: string) => {
     try {
       setRequestsLoading(true);
       const res = await adminEndpoints.getAuthorRequests(status || undefined);
       if (res.data) {
         if (Array.isArray(res.data)) {
           setRequests(res.data);
-        } else if ("requests" in res.data && Array.isArray(res.data.requests)) {
-          setRequests(res.data.requests);
+        } else if ("requests" in res.data && Array.isArray((res.data as { requests: AuthorRequest[] }).requests)) {
+          setRequests((res.data as { requests: AuthorRequest[] }).requests);
         }
       }
     } catch (err: unknown) {
@@ -50,17 +80,19 @@ export default function AdminPage() {
     } finally {
       setRequestsLoading(false);
     }
-  };
+  }, []);
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       setPostsLoading(true);
-      const res = await adminEndpoints.getAllPosts();
+      const res = await adminEndpoints.getAllPosts({
+        search: postSearch.trim() || undefined,
+      });
       if (res.data) {
         if (Array.isArray(res.data)) {
           setPosts(res.data);
-        } else if ("posts" in res.data && Array.isArray(res.data.posts)) {
-          setPosts(res.data.posts);
+        } else if ("posts" in res.data && Array.isArray((res.data as { posts: Post[] }).posts)) {
+          setPosts((res.data as { posts: Post[] }).posts);
         }
       }
     } catch (err: unknown) {
@@ -72,7 +104,7 @@ export default function AdminPage() {
     } finally {
       setPostsLoading(false);
     }
-  };
+  }, [postSearch]);
 
   useEffect(() => {
     if (activeTab === "requests") {
@@ -80,12 +112,13 @@ export default function AdminPage() {
     } else {
       fetchPosts();
     }
-  }, [activeTab, requestStatusFilter]);
+  }, [activeTab, requestStatusFilter, fetchRequests, fetchPosts]);
 
   const handleReview = async (id: string, status: "approved" | "rejected") => {
     setProcessingId(id);
     const notes = reviewNotes[id] || "";
-    const toastId = toast.loading(`${status === "approved" ? "Approving" : "Rejecting"} request...`);
+    const actionLabel = status === "approved" ? "Approving" : "Declining";
+    const toastId = toast.loading(`${actionLabel} author application…`);
 
     try {
       const res = await adminEndpoints.reviewAuthorRequest(id, {
@@ -96,11 +129,10 @@ export default function AdminPage() {
       if (res.status === "success") {
         toast.success(
           status === "approved"
-            ? "Author request approved and role elevated!"
-            : "Author request rejected.",
-          { id: toastId }
+            ? "Author request approved and role promoted!"
+            : "Author request declined.",
+          { id: toastId },
         );
-        // Refresh requests list
         await fetchRequests(requestStatusFilter);
       } else {
         toast.error(res.message || "Failed to review request", { id: toastId });
@@ -108,7 +140,15 @@ export default function AdminPage() {
     } catch (err: unknown) {
       let msg = "Failed to review request";
       if (axios.isAxiosError(err)) {
-        msg = err.response?.data?.message || err.message || msg;
+        const backendMsg = err.response?.data?.message || "";
+        if (backendMsg.includes("already been processed")) {
+          toast.info("Request has already been processed by an administrator.", {
+            id: toastId,
+          });
+          await fetchRequests(requestStatusFilter);
+          return;
+        }
+        msg = backendMsg || err.message || msg;
       }
       toast.error(msg, { id: toastId });
     } finally {
@@ -116,17 +156,16 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeletePost = async (post: Post) => {
-    if (!confirm(`Are you sure you want to permanently delete "${post.title}"?`)) return;
-
-    setDeletingPostId(post.id);
-    const toastId = toast.loading("Moderator deleting post...");
+  const confirmDeletePost = async () => {
+    if (!postToDelete) return;
+    setIsDeleting(true);
+    const toastId = toast.loading("Moderator deleting post…");
 
     try {
-      const res = await adminEndpoints.deletePost(post.id);
+      const res = await adminEndpoints.deletePost(postToDelete.id);
       if (res.status === "success") {
-        toast.success("Post successfully removed by moderator", { id: toastId });
-        setPosts((prev) => prev.filter((p) => p.id !== post.id));
+        toast.success("Post removed by administrator", { id: toastId });
+        setPosts((prev) => prev.filter((p) => p.id !== postToDelete.id));
       } else {
         toast.error(res.message || "Failed to delete post", { id: toastId });
       }
@@ -137,288 +176,351 @@ export default function AdminPage() {
       }
       toast.error(msg, { id: toastId });
     } finally {
-      setDeletingPostId(null);
+      setIsDeleting(false);
+      setPostToDelete(null);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Tab selection */}
-      <div className="flex border-b border-gray-200 gap-6">
-        <button
-          onClick={() => setActiveTab("requests")}
-          className={`pb-3 text-sm font-semibold transition-colors ${
-            activeTab === "requests"
-              ? "text-purple-600 border-b-2 border-purple-600"
-              : "text-gray-500 hover:text-gray-800"
-          }`}
-        >
-          Author Applications
-        </button>
-        <button
-          onClick={() => setActiveTab("posts")}
-          className={`pb-3 text-sm font-semibold transition-colors ${
-            activeTab === "posts"
-              ? "text-purple-600 border-b-2 border-purple-600"
-              : "text-gray-500 hover:text-gray-800"
-          }`}
-        >
-          Post Moderation
-        </button>
-      </div>
+    <div className="flex flex-col gap-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="requests" className="gap-2 text-xs font-semibold">
+            <UserCheck className="size-3.5" />
+            <span>Author Requests</span>
+          </TabsTrigger>
+          <TabsTrigger value="posts" className="gap-2 text-xs font-semibold">
+            <FileText className="size-3.5" />
+            <span>Post Moderation</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Tab 1: Author Requests Queue */}
-      {activeTab === "requests" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">
-              Applications Queue ({requests.length})
+        {/* Tab 1: Author Requests Queue */}
+        <TabsContent value="requests" className="mt-6 flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="font-serif text-xl font-bold tracking-tight text-foreground">
+              Author Applications ({requests.length})
             </h2>
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-gray-500">Filter:</span>
+
+            {/* Status Filter Pills */}
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
               {(["pending", "approved", "rejected", ""] as const).map((st) => (
-                <button
+                <Button
                   key={st}
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setRequestStatusFilter(st)}
-                  className={`px-2.5 py-1 rounded-md font-medium capitalize transition-colors ${
+                  className={`h-7 px-2.5 text-xs font-medium capitalize ${
                     requestStatusFilter === st
-                      ? "bg-purple-100 text-purple-800"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      ? "bg-muted text-foreground font-semibold shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {st || "All"}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
 
           {requestsLoading ? (
-            <div className="space-y-3">
-              <div className="h-32 bg-gray-50 rounded-xl border border-gray-100 animate-pulse" />
-              <div className="h-32 bg-gray-50 rounded-xl border border-gray-100 animate-pulse" />
+            <div className="flex flex-col gap-4">
+              <Skeleton className="h-44 w-full rounded-xl" />
+              <Skeleton className="h-44 w-full rounded-xl" />
             </div>
           ) : requests.length === 0 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <p className="text-sm text-gray-500 italic">
-                  No author applications found for the selected filter.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="rounded-xl border border-dashed border-border bg-card/40 p-12 text-center">
+              <p className="text-sm text-muted-foreground italic">
+                No author applications found for this filter.
+              </p>
+            </div>
           ) : (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               {requests.map((req) => (
-                <Card key={req.id} className="overflow-hidden border-gray-200 shadow-sm">
-                  <CardHeader className="bg-gray-50/50 pb-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <CardTitle className="text-base text-gray-900">
-                          {req.user_name || req.username || "Applicant"}
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          {req.user_email || `User ID: ${req.user_id}`} • Submitted{" "}
-                          {new Intl.DateTimeFormat("en-US", {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          }).format(new Date(req.created_at))}
-                        </CardDescription>
+                <Card key={req.id} className="border-border bg-card">
+                  <CardHeader className="p-5 pb-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-serif text-lg font-bold text-foreground">
+                          {req.user_name || "Applicant"}
+                        </span>
+                        {req.user_email && (
+                          <span className="text-xs text-muted-foreground">
+                            ({req.user_email})
+                          </span>
+                        )}
                       </div>
 
-                      <span
-                        className={`text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${
-                          req.status === "approved"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : req.status === "rejected"
-                            ? "bg-rose-100 text-rose-800"
-                            : "bg-amber-100 text-amber-800"
+                      <Badge
+                        variant="outline"
+                        className={`text-xs font-mono font-semibold py-0.5 px-2 capitalize ${
+                          req.status === "pending"
+                            ? "border-status-warning/40 bg-status-warning/10 text-status-warning"
+                            : req.status === "approved"
+                              ? "border-status-success/40 bg-status-success/10 text-status-success"
+                              : "border-status-danger/40 bg-status-danger/10 text-status-danger"
                         }`}
                       >
                         {req.status}
-                      </span>
+                      </Badge>
                     </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Submitted on {formatDate(req.created_at)}
+                    </p>
                   </CardHeader>
 
-                  <CardContent className="pt-4 space-y-3 text-sm">
+                  <CardContent className="px-5 py-2 flex flex-col gap-3 text-sm">
                     <div>
-                      <strong className="text-gray-900 block text-xs font-semibold mb-1">
-                        Bio:
-                      </strong>
-                      <p className="text-gray-700 bg-gray-50 p-2.5 rounded-md text-xs leading-relaxed">
+                      <span className="font-semibold text-foreground text-xs uppercase tracking-wider font-mono">
+                        Biography:
+                      </span>
+                      <p className="mt-1 text-muted-foreground leading-relaxed">
                         {req.bio}
                       </p>
                     </div>
 
-                    <div>
-                      <strong className="text-gray-900 block text-xs font-semibold mb-1">
-                        Motivation:
-                      </strong>
-                      <p className="text-gray-700 bg-gray-50 p-2.5 rounded-md text-xs leading-relaxed">
-                        {req.motivation || req.reason || "None provided"}
-                      </p>
-                    </div>
-
-                    {((req.sample_links && req.sample_links.length > 0) || req.sample_work) && (
+                    {req.motivation && (
                       <div>
-                        <strong className="text-gray-900 block text-xs font-semibold mb-1">
-                          Portfolio & Sample Work:
-                        </strong>
-                        <div className="flex flex-wrap gap-2">
-                          {req.sample_links?.map((link, i) => (
+                        <span className="font-semibold text-foreground text-xs uppercase tracking-wider font-mono">
+                          Motivation:
+                        </span>
+                        <p className="mt-1 text-muted-foreground leading-relaxed">
+                          {req.motivation}
+                        </p>
+                      </div>
+                    )}
+
+                    {req.sample_links && req.sample_links.length > 0 && (
+                      <div>
+                        <span className="font-semibold text-foreground text-xs uppercase tracking-wider font-mono">
+                          Portfolio / Sample Links:
+                        </span>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          {req.sample_links.map((link) => (
                             <a
-                              key={i}
+                              key={link}
                               href={link}
                               target="_blank"
-                              rel="noreferrer"
-                              className="text-xs text-[#ef862b] hover:underline bg-orange-50 px-2 py-1 rounded border border-orange-100 inline-flex items-center gap-1"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-accent-solid hover:underline"
                             >
                               <span>{link}</span>
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
+                              <ExternalLink className="size-3" />
                             </a>
                           ))}
-                          {req.sample_work && !req.sample_links?.length && (
-                            <span className="text-xs text-gray-700">{req.sample_work}</span>
-                          )}
                         </div>
                       </div>
                     )}
 
-                    {req.review_notes && (
-                      <div className="bg-purple-50/60 p-2.5 rounded border border-purple-100 text-xs">
-                        <strong className="text-purple-900">Review Notes: </strong>
-                        <span className="text-purple-800">{req.review_notes}</span>
-                      </div>
-                    )}
-
-                    {/* Action buttons if status === "pending" */}
+                    {/* Review Notes field for Pending requests */}
                     {req.status === "pending" && (
-                      <div className="pt-2 border-t border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                        <input
-                          type="text"
-                          placeholder="Optional review notes or feedback..."
+                      <div className="mt-2 flex flex-col gap-1.5">
+                        <Label
+                          htmlFor={`notes-${req.id}`}
+                          className="text-xs font-semibold"
+                        >
+                          Review Feedback / Internal Note (optional)
+                        </Label>
+                        <Textarea
+                          id={`notes-${req.id}`}
+                          placeholder="Feedback or rationale for approval/rejection…"
+                          rows={2}
                           value={reviewNotes[req.id] || ""}
                           onChange={(e) =>
-                            setReviewNotes({ ...reviewNotes, [req.id]: e.target.value })
+                            setReviewNotes((prev) => ({
+                              ...prev,
+                              [req.id]: e.target.value,
+                            }))
                           }
+                          className="text-xs bg-background resize-none"
                           disabled={processingId === req.id}
-                          className="flex-1 text-xs rounded-md border border-gray-200 px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500"
                         />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleReview(req.id, "approved")}
-                            disabled={processingId === req.id}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleReview(req.id, "rejected")}
-                            disabled={processingId === req.id}
-                            className="text-rose-600 border-rose-200 hover:bg-rose-50 text-xs"
-                          >
-                            Reject
-                          </Button>
-                        </div>
+                      </div>
+                    )}
+
+                    {req.review_notes && req.status !== "pending" && (
+                      <div className="rounded-md border border-border bg-muted/30 p-2.5 text-xs">
+                        <span className="font-semibold text-foreground">
+                          Review Note:{" "}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {req.review_notes}
+                        </span>
                       </div>
                     )}
                   </CardContent>
+
+                  {req.status === "pending" && (
+                    <CardFooter className="flex justify-end gap-2 border-t border-border/50 p-4 pt-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={processingId === req.id}
+                        onClick={() => handleReview(req.id, "rejected")}
+                        className="h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        {processingId === req.id ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <X className="size-3.5" />
+                        )}
+                        <span>Decline</span>
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={processingId === req.id}
+                        onClick={() => handleReview(req.id, "approved")}
+                        className="h-8 gap-1.5 text-xs bg-status-success text-white hover:bg-status-success/90"
+                      >
+                        {processingId === req.id ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Check className="size-3.5" />
+                        )}
+                        <span>Approve Author</span>
+                      </Button>
+                    </CardFooter>
+                  )}
                 </Card>
               ))}
             </div>
           )}
-        </div>
-      )}
+        </TabsContent>
 
-      {/* Tab 2: Post Moderation */}
-      {activeTab === "posts" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">
-              Published & Draft Publications ({posts.length})
+        {/* Tab 2: Post Moderation */}
+        <TabsContent value="posts" className="mt-6 flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="font-serif text-xl font-bold tracking-tight text-foreground">
+              Platform Articles ({posts.length})
             </h2>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                fetchPosts();
+              }}
+              className="flex items-center gap-2"
+            >
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search articles by title…"
+                  value={postSearch}
+                  onChange={(e) => setPostSearch(e.target.value)}
+                  className="h-8 w-56 pl-8 text-xs bg-card"
+                />
+              </div>
+              <Button type="submit" size="sm" variant="outline" className="h-8 text-xs">
+                Search
+              </Button>
+            </form>
           </div>
 
           {postsLoading ? (
-            <div className="space-y-2">
-              <div className="h-16 bg-gray-50 rounded-lg animate-pulse" />
-              <div className="h-16 bg-gray-50 rounded-lg animate-pulse" />
-              <div className="h-16 bg-gray-50 rounded-lg animate-pulse" />
+            <div className="flex flex-col gap-3">
+              <Skeleton className="h-20 w-full rounded-xl" />
+              <Skeleton className="h-20 w-full rounded-xl" />
             </div>
           ) : posts.length === 0 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <p className="text-sm text-gray-500 italic">No posts found in database.</p>
-              </CardContent>
-            </Card>
+            <div className="rounded-xl border border-dashed border-border bg-card/40 p-12 text-center">
+              <p className="text-sm text-muted-foreground italic">
+                No articles found matching search criteria.
+              </p>
+            </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
-                  <tr>
-                    <th className="p-3">Title</th>
-                    <th className="p-3">Author</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Engagement</th>
-                    <th className="p-3">Created</th>
-                    <th className="p-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {posts.map((post) => (
-                    <tr key={post.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="p-3 font-semibold text-gray-900 max-w-xs truncate">
+            <div className="flex flex-col gap-3">
+              {posts.map((post) => (
+                <div
+                  key={post.id}
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-card p-4 shadow-2xs transition-colors hover:border-border/80"
+                >
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/post/${post.slug}`}
+                        target="_blank"
+                        className="font-serif text-base font-bold text-foreground hover:text-accent-solid transition-colors line-clamp-1"
+                      >
                         {post.title}
-                      </td>
-                      <td className="p-3 text-gray-600">{post.author_name}</td>
-                      <td className="p-3">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
-                            post.status === "published"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : "bg-gray-100 text-gray-600"
-                          }`}
-                        >
-                          {post.status}
-                        </span>
-                      </td>
-                      <td className="p-3 text-gray-500">
-                        {post.likes_count ?? 0} likes • {post.comments_count ?? 0} comments
-                      </td>
-                      <td className="p-3 text-gray-500">
-                        {new Intl.DateTimeFormat("en-US", {
-                          dateStyle: "short",
-                        }).format(new Date(post.created_at))}
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/post/${post.slug}`}
-                            className={buttonVariants({ variant: "ghost", size: "sm" }) + " text-xs h-7"}
-                          >
-                            View
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePost(post)}
-                            disabled={deletingPostId === post.id}
-                            className="px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded border border-rose-200 transition-colors disabled:opacity-50"
-                          >
-                            {deletingPostId === post.id ? "..." : "Delete"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </Link>
+                      <Badge
+                        variant="secondary"
+                        className="font-mono text-[10px] uppercase tracking-wider py-0"
+                      >
+                        {post.status}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span>Author: {post.author_name}</span>
+                      <span>•</span>
+                      <span>{formatDate(post.created_at)}</span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Heart className="size-3" />
+                        {post.likes_count || 0}
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <MessageSquare className="size-3" />
+                        {post.comments_count || 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                      <Link href={`/post/${post.slug}`} target="_blank">
+                        <ExternalLink className="size-3.5" />
+                        <span>View</span>
+                      </Link>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPostToDelete(post)}
+                      className="h-8 gap-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      aria-label={`Admin delete ${post.title}`}
+                    >
+                      <Trash2 className="size-3.5" />
+                      <span>Delete</span>
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-        </div>
-      )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Admin Post Deletion AlertDialog */}
+      <AlertDialog
+        open={Boolean(postToDelete)}
+        onOpenChange={(open) => !open && setPostToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Moderator Post Deletion</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete &ldquo;{postToDelete?.title}&rdquo; by {postToDelete?.author_name}? This action is irreversible and removes all associated data from the platform.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeletePost}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting…" : "Delete Article"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
