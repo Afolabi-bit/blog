@@ -121,7 +121,15 @@ export function CommentSection({ postId, postAuthorId }: CommentSectionProps) {
       const res = await commentsEndpoints.deleteComment(commentToDelete);
       if (res.status === "success") {
         toast.success("Comment deleted");
-        setComments((prev) => prev.filter((c) => c.id !== commentToDelete));
+        const removeComment = (list: Comment[], targetId: string): Comment[] => {
+          return list
+            .filter((c) => c.id !== targetId)
+            .map((c) => ({
+              ...c,
+              replies: c.replies ? removeComment(c.replies, targetId) : [],
+            }));
+        };
+        setComments((prev) => removeComment(prev, commentToDelete));
       } else {
         toast.error(res.message || "Failed to delete comment");
       }
@@ -137,26 +145,6 @@ export function CommentSection({ postId, postAuthorId }: CommentSectionProps) {
     }
   };
 
-  // Build comment map and hierarchy, gracefully handling orphans
-  const commentMap = new Map<string, Comment>();
-  comments.forEach((c) => commentMap.set(c.id, c));
-
-  const rootComments: Comment[] = [];
-  const replyMap = new Map<string, Comment[]>();
-
-  comments.forEach((c) => {
-    if (!c.parent_id) {
-      rootComments.push(c);
-    } else if (commentMap.has(c.parent_id)) {
-      const existing = replyMap.get(c.parent_id) || [];
-      existing.push(c);
-      replyMap.set(c.parent_id, existing);
-    } else {
-      // Orphan reply (parent was deleted or not yet paginated) -> display at root
-      rootComments.push(c);
-    }
-  });
-
   const canDelete = (c: Comment) => {
     if (!user) return false;
     const authorId = c.author_id || c.user_id;
@@ -167,7 +155,11 @@ export function CommentSection({ postId, postAuthorId }: CommentSectionProps) {
     );
   };
 
-  const renderComment = (comment: Comment, isReply = false) => {
+  const renderComment = (
+    comment: Comment,
+    isReply = false,
+    parentAuthorName?: string,
+  ) => {
     const commenterName =
       comment.author_name || comment.user_name || "Reader";
     const initials = commenterName
@@ -181,9 +173,8 @@ export function CommentSection({ postId, postAuthorId }: CommentSectionProps) {
       (comment.author_id && comment.author_id === postAuthorId) ||
       (comment.user_id && comment.user_id === postAuthorId);
 
-    const replies = replyMap.get(comment.id) || [];
-    const parentComment = comment.parent_id ? commentMap.get(comment.parent_id) : null;
-    const parentAuthorName = parentComment?.author_name || parentComment?.user_name;
+    // B10: Server returns roots with nested replies array
+    const replies = comment.replies || [];
 
     return (
       <div
@@ -306,7 +297,7 @@ export function CommentSection({ postId, postAuthorId }: CommentSectionProps) {
         {/* Nested replies */}
         {replies.length > 0 && (
           <div className="mt-2 flex flex-col">
-            {replies.map((reply) => renderComment(reply, true))}
+            {replies.map((reply) => renderComment(reply, true, commenterName))}
           </div>
         )}
       </div>
@@ -394,7 +385,7 @@ export function CommentSection({ postId, postAuthorId }: CommentSectionProps) {
             <Skeleton className="h-4 w-5/6" />
           </div>
         </div>
-      ) : rootComments.length === 0 ? (
+      ) : comments.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card/40 p-8 text-center">
           <p className="text-sm text-muted-foreground italic">
             No comments yet. Be the first to share your thoughts!
@@ -402,7 +393,7 @@ export function CommentSection({ postId, postAuthorId }: CommentSectionProps) {
         </div>
       ) : (
         <div className="flex flex-col">
-          {rootComments.map((comment) => renderComment(comment))}
+          {comments.map((comment) => renderComment(comment))}
         </div>
       )}
 
