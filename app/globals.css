@@ -176,3 +176,171 @@
   }
 }
 
+/* ==========================================================================
+   Shared Editorial Typography (.prose-bloggr)
+   Used by both MarkdownRenderer and Tiptap editor canvas for 1:1 WYSIWYG parity.
+   ========================================================================== */
+.prose-bloggr {
+  color: var(--foreground);
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.125rem; /* 18px */
+  line-height: 1.8;
+}
+
+.prose-bloggr h1,
+.prose-bloggr h2,
+.prose-bloggr h3,
+.prose-bloggr h4 {
+  font-family: var(--font-serif), Georgia, serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  scroll-margin-top: 5rem;
+}
+
+.prose-bloggr h1 {
+  font-size: 2.125rem; /* 34px */
+  line-height: 1.25;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.prose-bloggr h2 {
+  font-size: 1.625rem; /* 26px */
+  line-height: 1.3;
+  margin-top: 2.25rem;
+  margin-bottom: 0.875rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.prose-bloggr h3 {
+  font-size: 1.375rem; /* 22px */
+  line-height: 1.35;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.prose-bloggr h4 {
+  font-size: 1.125rem; /* 18px */
+  line-height: 1.4;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose-bloggr p {
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  color: color-mix(in oklch, var(--foreground) 92%, transparent);
+}
+
+.prose-bloggr a {
+  color: var(--accent-solid);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-weight: 500;
+  transition: opacity 150ms ease;
+}
+
+.prose-bloggr a:hover {
+  opacity: 0.85;
+}
+
+.prose-bloggr blockquote {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid var(--accent-solid);
+  padding: 0.25rem 0 0.25rem 1.25rem;
+  font-style: italic;
+  color: var(--muted-foreground);
+  background-color: color-mix(in oklch, var(--muted) 40%, transparent);
+  border-top-right-radius: 0.375rem;
+  border-bottom-right-radius: 0.375rem;
+}
+
+.prose-bloggr ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.prose-bloggr ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.prose-bloggr li {
+  padding-left: 0.25rem;
+}
+
+.prose-bloggr hr {
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.prose-bloggr code:not(pre code) {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.875em;
+  font-weight: 500;
+  background-color: var(--muted);
+  color: var(--foreground);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+}
+
+.prose-bloggr pre {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.prose-bloggr img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.625rem;
+  margin-top: 1.75rem;
+  margin-bottom: 1.75rem;
+}
+
+.prose-bloggr table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9375rem;
+  text-align: left;
+}
+
+.prose-bloggr th {
+  border: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 60%, transparent);
+  padding: 0.625rem 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.prose-bloggr td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 1rem;
+  color: color-mix(in oklch, var(--foreground) 90%, transparent);
+}
+
