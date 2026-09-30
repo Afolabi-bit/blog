@@ -27,8 +27,8 @@ export default function RegisterPage() {
   const router = useRouter();
 
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    first_name: "",
+    last_name: "",
     email: "",
     password: "",
   });
@@ -116,53 +116,53 @@ export default function RegisterPage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="firstName" className="text-sm font-medium text-foreground">
+                <Label htmlFor="first_name" className="text-sm font-medium text-foreground">
                   First name
                 </Label>
                 <Input
-                  id="firstName"
-                  name="firstName"
+                  id="first_name"
+                  name="first_name"
                   type="text"
                   autoComplete="given-name"
                   placeholder="Jane"
-                  value={formData.firstName}
+                  value={formData.first_name}
                   onChange={handleChange}
                   disabled={isPending}
-                  aria-invalid={Boolean(fieldErrors.firstName)}
+                  aria-invalid={Boolean(fieldErrors.first_name)}
                   aria-describedby={
-                    fieldErrors.firstName ? "firstName-error" : undefined
+                    fieldErrors.first_name ? "first_name-error" : undefined
                   }
                   className="bg-background"
                 />
-                {fieldErrors.firstName && (
-                  <p id="firstName-error" className="text-xs text-destructive">
-                    {fieldErrors.firstName}
+                {fieldErrors.first_name && (
+                  <p id="first_name-error" className="text-xs text-destructive">
+                    {fieldErrors.first_name}
                   </p>
                 )}
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="lastName" className="text-sm font-medium text-foreground">
+                <Label htmlFor="last_name" className="text-sm font-medium text-foreground">
                   Last name
                 </Label>
                 <Input
-                  id="lastName"
-                  name="lastName"
+                  id="last_name"
+                  name="last_name"
                   type="text"
                   autoComplete="family-name"
                   placeholder="Doe"
-                  value={formData.lastName}
+                  value={formData.last_name}
                   onChange={handleChange}
                   disabled={isPending}
-                  aria-invalid={Boolean(fieldErrors.lastName)}
+                  aria-invalid={Boolean(fieldErrors.last_name)}
                   aria-describedby={
-                    fieldErrors.lastName ? "lastName-error" : undefined
+                    fieldErrors.last_name ? "last_name-error" : undefined
                   }
                   className="bg-background"
                 />
-                {fieldErrors.lastName && (
-                  <p id="lastName-error" className="text-xs text-destructive">
-                    {fieldErrors.lastName}
+                {fieldErrors.last_name && (
+                  <p id="last_name-error" className="text-xs text-destructive">
+                    {fieldErrors.last_name}
                   </p>
                 )}
               </div>
