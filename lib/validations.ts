@@ -31,7 +31,7 @@ export const RegisterSchema = z.object({
     .string()
     .min(6, "Password must be at least 6 characters")
     .max(100, "Password must be at most 100 characters"),
-  role: z.enum(["reader", "author", "admin"]).default("reader"),
+  role: z.enum(["reader", "author", "admin"]).optional(),
 });
 
 export type RegisterInput = z.infer<typeof RegisterSchema>;
