@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "sonner";
 import { userEndpoints } from "@/lib/endpoints";
 import { useAuth } from "@/components/general/AuthProvider";
 import { setStoredUser } from "@/lib/client";
+import { UpdateProfileSchema, ChangePasswordSchema } from "@/lib/validations";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,29 +19,31 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CoverUploader } from "@/components/editor/CoverUploader";
+import { Loader2, Lock, Save, User as UserIcon, Shield } from "lucide-react";
 
 export default function SettingsPage() {
   const router = useRouter();
   const { user, setUser, logout } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
-
-  // Profile Form state
+  // Profile state
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
   const [profilePending, startProfileTransition] = useTransition();
 
-  // Security Form state
+  // Security state
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [securityErrors, setSecurityErrors] = useState<Record<string, string>>({});
   const [securityPending, startSecurityTransition] = useTransition();
 
   useEffect(() => {
-    // Populate user profile info
     if (user) {
       if (user.full_name) {
         const parts = user.full_name.split(" ");
@@ -55,8 +57,26 @@ export default function SettingsPage() {
 
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    setProfileErrors({});
+
+    const result = UpdateProfileSchema.safeParse({
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      bio: bio.trim(),
+      avatar_url: avatarUrl || undefined,
+    });
+
+    if (!result.success) {
+      const errs: Record<string, string> = {};
+      for (const issue of result.error.issues) {
+        if (issue.path[0]) errs[String(issue.path[0])] = issue.message;
+      }
+      setProfileErrors(errs);
+      return;
+    }
 
     startProfileTransition(async () => {
+      const toastId = toast.loading("Saving profile…");
       try {
         const res = await userEndpoints.updateProfile({
           first_name: firstName.trim(),
@@ -66,36 +86,43 @@ export default function SettingsPage() {
         });
 
         if (res.status === "success" && res.data) {
-          toast.success("Profile updated successfully!");
+          toast.success("Profile updated successfully!", { id: toastId });
           setUser(res.data);
           setStoredUser(res.data);
         } else {
-          toast.error(res.message || "Failed to update profile");
+          toast.error(res.message || "Failed to update profile", { id: toastId });
         }
       } catch (err: unknown) {
         let msg = "Failed to update profile";
         if (axios.isAxiosError(err)) {
           msg = err.response?.data?.message || err.message || msg;
         }
-        toast.error(msg);
+        toast.error(msg, { id: toastId });
       }
     });
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
+    setSecurityErrors({});
 
-    if (newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters.");
-      return;
-    }
+    const result = ChangePasswordSchema.safeParse({
+      old_password: oldPassword,
+      new_password: newPassword,
+      confirm_password: confirmPassword,
+    });
 
-    if (newPassword !== confirmPassword) {
-      toast.error("New passwords do not match.");
+    if (!result.success) {
+      const errs: Record<string, string> = {};
+      for (const issue of result.error.issues) {
+        if (issue.path[0]) errs[String(issue.path[0])] = issue.message;
+      }
+      setSecurityErrors(errs);
       return;
     }
 
     startSecurityTransition(async () => {
+      const toastId = toast.loading("Changing password…");
       try {
         const res = await userEndpoints.changePassword({
           old_password: oldPassword,
@@ -103,199 +130,268 @@ export default function SettingsPage() {
         });
 
         if (res.status === "success") {
-          toast.success("Password changed! Please log in with your new password.");
+          toast.success(
+            "Password changed! Please log in with your new password.",
+            { id: toastId },
+          );
           setOldPassword("");
           setNewPassword("");
           setConfirmPassword("");
           await logout();
           router.push("/login");
         } else {
-          toast.error(res.message || "Failed to change password");
+          toast.error(res.message || "Failed to change password", { id: toastId });
         }
       } catch (err: unknown) {
         let msg = "Failed to change password";
         if (axios.isAxiosError(err)) {
           msg = err.response?.data?.message || err.message || msg;
         }
-        toast.error(msg);
+        toast.error(msg, { id: toastId });
       }
     });
   };
 
+  const isAuthorOrAdmin = user?.role === "author" || user?.role === "admin";
+
   return (
-    <div className="py-8 max-w-2xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">
+    <div className="py-6 max-w-3xl mx-auto flex flex-col gap-6">
+      <div>
+        <h1 className="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           Account Settings
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Manage your personal details and security preferences
+        <p className="text-sm text-muted-foreground mt-1">
+          Manage your personal details, profile presentation, and security preferences.
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6 gap-6">
-        <button
-          onClick={() => setActiveTab("profile")}
-          className={`pb-3 text-sm font-semibold transition-colors relative ${
-            activeTab === "profile"
-              ? "text-[#ef862b] border-b-2 border-[#ef862b]"
-              : "text-gray-500 hover:text-gray-800"
-          }`}
-        >
-          Profile Information
-        </button>
-        <button
-          onClick={() => setActiveTab("security")}
-          className={`pb-3 text-sm font-semibold transition-colors relative ${
-            activeTab === "security"
-              ? "text-[#ef862b] border-b-2 border-[#ef862b]"
-              : "text-gray-500 hover:text-gray-800"
-          }`}
-        >
-          Security & Password
-        </button>
-      </div>
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="mb-6 grid w-full grid-cols-2">
+          <TabsTrigger value="profile" className="gap-2 text-xs font-semibold">
+            <UserIcon className="size-3.5" />
+            <span>Profile Information</span>
+          </TabsTrigger>
+          <TabsTrigger value="security" className="gap-2 text-xs font-semibold">
+            <Lock className="size-3.5" />
+            <span>Security & Password</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {activeTab === "profile" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Public Profile</CardTitle>
-            <CardDescription>
-              This information will be displayed alongside your articles and comments.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleUpdateProfile} className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="first_name">First Name</Label>
-                  <Input
-                    id="first_name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                    disabled={profilePending}
-                  />
+        {/* Profile Tab */}
+        <TabsContent value="profile">
+          <Card className="border-border bg-card">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="font-serif text-xl font-bold">
+                    Public Profile
+                  </CardTitle>
+                  <CardDescription>
+                    Information displayed alongside your published articles and comments.
+                  </CardDescription>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="last_name">Last Name</Label>
-                  <Input
-                    id="last_name"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                    disabled={profilePending}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={user?.email || ""}
-                  disabled
-                  className="bg-gray-50 text-gray-500 cursor-not-allowed"
-                />
-                <p className="text-xs text-gray-400">Email cannot be changed.</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Avatar Photo</Label>
-                <CoverUploader
-                  value={avatarUrl}
-                  onChange={setAvatarUrl}
-                  disabled={profilePending}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio">About You</Label>
-                <Textarea
-                  id="bio"
-                  rows={3}
-                  placeholder="Share a short bio..."
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  disabled={profilePending}
-                />
-              </div>
-
-              <div className="pt-2 flex items-center justify-between">
-                <Button type="submit" disabled={profilePending}>
-                  {profilePending ? "Saving..." : "Save Profile"}
-                </Button>
-
-                {user?.role === "reader" && (
-                  <Link
-                    href="/settings/author-request"
-                    className="text-xs text-[#ef862b] hover:underline font-medium"
+                {user?.role && (
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-[10px] uppercase tracking-wider py-0.5 px-2"
                   >
-                    Apply to Become an Author →
-                  </Link>
+                    Role: {user.role}
+                  </Badge>
                 )}
               </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+            </CardHeader>
 
-      {activeTab === "security" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Change Password</CardTitle>
-            <CardDescription>
-              Ensure your account is using a strong password. Changing your password will sign you out of all sessions.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleChangePassword} className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="old_password">Current Password</Label>
-                <Input
-                  id="old_password"
-                  type="password"
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  required
+            <CardContent>
+              <form onSubmit={handleUpdateProfile} className="flex flex-col gap-5">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="first_name">First Name</Label>
+                    <Input
+                      id="first_name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      disabled={profilePending}
+                      className="bg-background"
+                    />
+                    {profileErrors.first_name && (
+                      <p className="text-xs text-destructive">{profileErrors.first_name}</p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="last_name">Last Name</Label>
+                    <Input
+                      id="last_name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      disabled={profilePending}
+                      className="bg-background"
+                    />
+                    {profileErrors.last_name && (
+                      <p className="text-xs text-destructive">{profileErrors.last_name}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={user?.email || ""}
+                    disabled
+                    className="bg-muted text-muted-foreground cursor-not-allowed"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Email address is managed by your account credentials.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    placeholder="Tell readers about yourself, engineering focus, and background…"
+                    rows={3}
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    disabled={profilePending}
+                    className="resize-none bg-background text-sm"
+                  />
+                  {profileErrors.bio && (
+                    <p className="text-xs text-destructive">{profileErrors.bio}</p>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label>Profile Picture / Avatar</Label>
+                  {isAuthorOrAdmin ? (
+                    <CoverUploader
+                      value={avatarUrl}
+                      onChange={setAvatarUrl}
+                      disabled={profilePending}
+                    />
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <Input
+                        type="url"
+                        placeholder="https://example.com/avatar.jpg"
+                        value={avatarUrl}
+                        onChange={(e) => setAvatarUrl(e.target.value)}
+                        disabled={profilePending}
+                        className="bg-background text-xs"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Readers can provide an external image URL. Direct file uploads are available to authors.
+                      </p>
+                    </div>
+                  )}
+                  {profileErrors.avatar_url && (
+                    <p className="text-xs text-destructive">{profileErrors.avatar_url}</p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={profilePending}
+                  className="w-fit gap-2 bg-accent-solid text-white hover:bg-accent-solid/90"
+                >
+                  {profilePending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Save className="size-4" />
+                  )}
+                  <span>Save Profile</span>
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Security Tab */}
+        <TabsContent value="security">
+          <Card className="border-border bg-card">
+            <CardHeader>
+              <CardTitle className="font-serif text-xl font-bold flex items-center gap-2">
+                <Shield className="size-5 text-accent-solid" />
+                <span>Security & Password</span>
+              </CardTitle>
+              <CardDescription>
+                Update your account password. Changing password will require you to sign in again.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="old_password">Current Password</Label>
+                  <Input
+                    id="old_password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    required
+                    disabled={securityPending}
+                    className="bg-background"
+                  />
+                  {securityErrors.old_password && (
+                    <p className="text-xs text-destructive">{securityErrors.old_password}</p>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="new_password">New Password</Label>
+                  <Input
+                    id="new_password"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="At least 6 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    disabled={securityPending}
+                    className="bg-background"
+                  />
+                  {securityErrors.new_password && (
+                    <p className="text-xs text-destructive">{securityErrors.new_password}</p>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="confirm_password">Confirm New Password</Label>
+                  <Input
+                    id="confirm_password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    disabled={securityPending}
+                    className="bg-background"
+                  />
+                  {securityErrors.confirm_password && (
+                    <p className="text-xs text-destructive">{securityErrors.confirm_password}</p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
                   disabled={securityPending}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="new_password">New Password</Label>
-                <Input
-                  id="new_password"
-                  type="password"
-                  placeholder="At least 6 characters"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  disabled={securityPending}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirm_password">Confirm New Password</Label>
-                <Input
-                  id="confirm_password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  disabled={securityPending}
-                />
-              </div>
-
-              <Button type="submit" disabled={securityPending}>
-                {securityPending ? "Updating Password..." : "Update Password"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+                  className="w-fit gap-2 mt-2 bg-accent-solid text-white hover:bg-accent-solid/90"
+                >
+                  {securityPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Lock className="size-4" />
+                  )}
+                  <span>Update Password</span>
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
