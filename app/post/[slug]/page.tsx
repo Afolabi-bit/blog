@@ -1,12 +1,22 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { LikeButton } from "@/components/post/LikeButton";
-import { CommentSection } from "@/components/post/CommentSection";
 import { postsEndpoints } from "@/lib/endpoints";
 import type { Post } from "@/lib/types";
+import { MarkdownRenderer } from "@/components/post/MarkdownRenderer";
+import { ArticleActionBar } from "@/components/post/ArticleActionBar";
+import { CommentSection } from "@/components/post/CommentSection";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { calculateReadingTime, formatDate, stripMarkdown } from "@/lib/utils";
+import { ArrowLeft, BookOpen, Clock, Calendar } from "lucide-react";
+
+interface PostPageProps {
+  params: Promise<{ slug: string }>;
+}
 
 async function getPost(slug: string): Promise<Post | null> {
   try {
@@ -17,75 +27,179 @@ async function getPost(slug: string): Promise<Post | null> {
   }
 }
 
-type Params = Promise<{ slug: string }>;
-
-export default async function PostPage({ params }: { params: Params }) {
+export async function generateMetadata({
+  params,
+}: PostPageProps): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPost(slug);
 
-  if (!post) return notFound();
+  if (!post) {
+    return {
+      title: "Article Not Found — Bloggr",
+      description: "The requested article could not be found.",
+    };
+  }
+
+  const snippet = stripMarkdown(post.content).slice(0, 160);
+
+  return {
+    title: `${post.title} — Bloggr`,
+    description: snippet || "Read full story on Bloggr.",
+    openGraph: {
+      title: post.title,
+      description: snippet,
+      type: "article",
+      authors: [post.author_name],
+      tags: post.tags,
+      images: post.cover_image ? [{ url: post.cover_image }] : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: snippet,
+      images: post.cover_image ? [post.cover_image] : [],
+    },
+  };
+}
+
+export default async function PostPage({ params }: PostPageProps) {
+  const { slug } = await params;
+  const post = await getPost(slug);
+
+  if (!post) {
+    return notFound();
+  }
+
+  const readingTime = calculateReadingTime(post.content);
+  const formattedDate = formatDate(post.created_at);
+
+  const authorInitials = post.author_name
+    ? post.author_name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase()
+    : "AU";
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
-      <Link className={buttonVariants({ variant: "secondary" })} href="/">
-        ← Back to posts
-      </Link>
+    <article className="mx-auto max-w-4xl py-6 sm:py-10">
+      {/* Back button */}
+      <div className="mb-8">
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <Link href="/">
+            <ArrowLeft className="size-4" />
+            <span>All articles</span>
+          </Link>
+        </Button>
+      </div>
 
-      <div className="mb-8 mt-6">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900 mb-4">
-          {post.title}
-        </h1>
-
-        {post.tags?.length > 0 && (
-          <div className="mb-4 flex flex-wrap gap-2">
+      {/* Article Header */}
+      <header className="flex flex-col gap-6">
+        {post.tags && post.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
             {post.tags.map((tag) => (
-              <span
+              <Badge
                 key={tag}
-                className="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-[#ef862b] border border-orange-100"
+                variant="secondary"
+                className="font-mono text-xs text-muted-foreground hover:text-foreground"
               >
                 #{tag}
-              </span>
+              </Badge>
             ))}
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-y border-gray-100 text-sm text-gray-500">
-          <div className="flex items-center gap-3">
-            <span className="font-medium text-gray-800">{post.author_name}</span>
-            <span>•</span>
-            <time>
-              {new Intl.DateTimeFormat("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              }).format(new Date(post.created_at))}
-            </time>
-          </div>
-          <LikeButton postId={post.id} initialLikesCount={post.likes_count ?? 0} />
-        </div>
-      </div>
+        <h1 className="font-serif text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl md:text-5xl">
+          {post.title}
+        </h1>
 
-      {post.cover_image && (
-        <div className="relative h-[320px] sm:h-[420px] w-full mb-8 overflow-hidden rounded-xl shadow-sm border border-gray-100">
-          <Image
-            src={post.cover_image}
-            alt={post.title}
-            fill
-            priority
-            className="object-cover"
+        {/* Author & Meta Row */}
+        <div className="flex flex-col gap-4 border-y border-border/50 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <Avatar className="size-11 border border-border">
+              <AvatarFallback className="bg-muted text-sm font-semibold text-foreground">
+                {authorInitials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-foreground">
+                  {post.author_name}
+                </span>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] uppercase font-mono tracking-wider py-0 px-1.5"
+                >
+                  Author
+                </Badge>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                <span className="flex items-center gap-1">
+                  <Calendar className="size-3" />
+                  <time dateTime={post.created_at}>{formattedDate}</time>
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Clock className="size-3" />
+                  <span>{readingTime}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <ArticleActionBar
+            postId={post.id}
+            initialLikesCount={post.likes_count ?? 0}
+            commentsCount={post.comments_count ?? 0}
           />
+        </div>
+      </header>
+
+      {/* Cover Image */}
+      {post.cover_image && (
+        <div className="my-8 overflow-hidden rounded-2xl border border-border shadow-xs">
+          <AspectRatio ratio={16 / 9}>
+            <Image
+              src={post.cover_image}
+              alt={post.title}
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 896px"
+              className="object-cover"
+            />
+          </AspectRatio>
         </div>
       )}
 
-      <Card className="border-none shadow-none">
-        <CardContent className="px-0 pt-2 pb-6">
-          <article className="prose prose-gray max-w-none text-gray-800 text-base leading-relaxed whitespace-pre-line">
-            {post.content}
-          </article>
-        </CardContent>
-      </Card>
+      {/* Article Content */}
+      <div className="my-10">
+        <MarkdownRenderer content={post.content} />
+      </div>
 
-      <CommentSection postId={post.id} postAuthorId={post.author_id} />
-    </div>
+      {/* Bottom Action Bar */}
+      <div className="mt-12 flex flex-col items-center justify-between gap-4 border-y border-border/50 py-6 sm:flex-row">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <BookOpen className="size-4" />
+          <span>Thanks for reading this story.</span>
+        </div>
+
+        <ArticleActionBar
+          postId={post.id}
+          initialLikesCount={post.likes_count ?? 0}
+          commentsCount={post.comments_count ?? 0}
+        />
+      </div>
+
+      {/* Comments Section */}
+      <div id="comments" className="mt-12 scroll-mt-24">
+        <CommentSection postId={post.id} postAuthorId={post.author_id} />
+      </div>
+    </article>
   );
 }
