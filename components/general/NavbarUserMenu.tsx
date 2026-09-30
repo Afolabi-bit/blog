@@ -2,9 +2,38 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { buttonVariants } from "../ui/button";
 import { useAuth } from "./AuthProvider";
 import type { AuthUser } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { ThemeToggle } from "./ThemeToggle";
+import {
+  PenSquare,
+  LayoutDashboard,
+  Shield,
+  Settings,
+  LogOut,
+  Menu,
+  User as UserIcon,
+  Sparkles,
+} from "lucide-react";
 
 interface NavbarUserMenuProps {
   user: AuthUser | null;
@@ -12,184 +41,259 @@ interface NavbarUserMenuProps {
 
 export function NavbarUserMenu({ user: initialUser }: NavbarUserMenuProps) {
   const { user: contextUser, logout } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Prefer context (updated after login) over the SSR-passed prop
   const user = contextUser ?? initialUser;
   const displayName =
     user?.full_name || user?.username || user?.email?.split("@")[0] || "User";
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
+
+  const isAuthor = user?.role === "author" || user?.role === "admin";
+  const isAdmin = user?.role === "admin";
+  const isReader = user?.role === "reader";
 
   return (
-    <>
-      {/* Mobile hamburger */}
-      <div className="sm:hidden">
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="text-gray-500 hover:text-gray-700 focus:outline-none p-1"
-          aria-label="Toggle menu"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d={
-                isMenuOpen
-                  ? "M6 18L18 6M6 6l12 12"
-                  : "M4 6h16M4 12h16M4 18h16"
-              }
-            />
-          </svg>
-        </button>
-      </div>
+    <div className="flex items-center gap-2 sm:gap-3">
+      <ThemeToggle />
 
-      {/* Mobile dropdown */}
-      {isMenuOpen && (
-        <div className="sm:hidden absolute top-16 left-0 right-0 w-full max-w-xs mx-auto bg-white p-4 rounded-xl shadow-xl border border-gray-100 z-50">
-          <div className="flex flex-col gap-3">
-            <Link
-              href="/"
-              className="text-sm font-medium hover:text-[#ef862b] transition-colors py-1"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Home
-            </Link>
-            {user ? (
-              <>
-                {(user.role === "author" || user.role === "admin") && (
-                  <Link
-                    href="/dashboard"
-                    className="text-sm font-medium hover:text-[#ef862b] transition-colors py-1"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Author Studio
-                  </Link>
-                )}
-                {user.role === "admin" && (
-                  <Link
-                    href="/admin"
-                    className="text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors py-1"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Admin Panel
-                  </Link>
-                )}
-                {user.role === "reader" && (
-                  <Link
-                    href="/settings/author-request"
-                    className="text-sm font-medium text-[#ef862b] transition-colors py-1"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Become an Author
-                  </Link>
-                )}
-                <Link
-                  href="/settings"
-                  className="text-sm font-medium hover:text-[#ef862b] transition-colors py-1"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Settings
-                </Link>
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-700">
-                    {displayName}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      logout();
-                    }}
-                    className="text-xs text-red-600 font-semibold"
-                  >
-                    Logout
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className={buttonVariants({ size: "sm" })}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/register"
-                  className={buttonVariants({ variant: "secondary", size: "sm" })}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Sign up
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Desktop auth controls */}
-      <div className="hidden sm:flex items-center gap-3">
+      {/* Desktop Auth Section */}
+      <div className="hidden sm:flex sm:items-center sm:gap-3">
         {user ? (
           <div className="flex items-center gap-3">
-            {user.role === "admin" && (
-              <Link
-                href="/admin"
-                className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors"
-              >
-                Admin Panel
-              </Link>
-            )}
-            {(user.role === "author" || user.role === "admin") && (
-              <Link
-                href="/dashboard"
-                className="text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-50 text-[#ef862b] border border-orange-200 hover:bg-orange-100 transition-colors"
-              >
-                Studio
-              </Link>
-            )}
-            {user.role === "reader" && (
-              <Link
-                href="/settings/author-request"
-                className="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 transition-colors"
-              >
-                Become Author
-              </Link>
+            {isAuthor && (
+              <Button asChild size="sm" variant="outline" className="gap-1.5 h-8">
+                <Link href="/dashboard">
+                  <PenSquare className="size-3.5 text-accent-solid" />
+                  <span>Write</span>
+                </Link>
+              </Button>
             )}
 
-            <Link
-              href="/settings"
-              className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
-              title="Account Settings"
-            >
-              {displayName}
-            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="relative size-9 rounded-full p-0 ring-offset-background transition-transform hover:scale-105 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Open user menu"
+                >
+                  <Avatar className="size-9 border border-border">
+                    <AvatarImage
+                      src={user.avatar_url || user.picture}
+                      alt={displayName}
+                    />
+                    <AvatarFallback className="bg-muted text-xs font-semibold text-foreground">
+                      {initials || <UserIcon className="size-4" />}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
 
-            <button
-              onClick={logout}
-              className={buttonVariants({ variant: "ghost", size: "sm" })}
-            >
-              Logout
-            </button>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm font-semibold leading-none text-foreground">
+                      {displayName}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {user.email}
+                    </p>
+                    <div className="pt-1">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] uppercase font-mono tracking-wider font-semibold py-0 px-1.5"
+                      >
+                        {user.role}
+                      </Badge>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                <DropdownMenuGroup>
+                  {isAuthor && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard" className="cursor-pointer gap-2">
+                        <LayoutDashboard className="size-4 text-muted-foreground" />
+                        <span>Author Studio</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer gap-2">
+                        <Shield className="size-4 text-muted-foreground" />
+                        <span>Admin Panel</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
+                  {isReader && (
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href="/settings/author-request"
+                        className="cursor-pointer gap-2"
+                      >
+                        <Sparkles className="size-4 text-accent-warm" />
+                        <span>Become an Author</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings" className="cursor-pointer gap-2">
+                      <Settings className="size-4 text-muted-foreground" />
+                      <span>Settings</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => logout()}
+                  className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+                >
+                  <LogOut className="size-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <Link href="/login" className={buttonVariants({ size: "sm" })}>
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className={buttonVariants({ variant: "secondary", size: "sm" })}
-            >
-              Sign up
-            </Link>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/login">Sign in</Link>
+            </Button>
+            <Button asChild size="sm" className="bg-accent-solid text-white hover:bg-accent-solid/90">
+              <Link href="/register">Get Started</Link>
+            </Button>
           </div>
         )}
       </div>
-    </>
+
+      {/* Mobile Drawer Sheet */}
+      <div className="sm:hidden">
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-9"
+              aria-label="Open navigation menu"
+            >
+              <Menu className="size-5" />
+            </Button>
+          </SheetTrigger>
+
+          <SheetContent side="right" className="flex flex-col justify-between w-72">
+            <SheetHeader>
+              <SheetTitle className="text-left font-serif text-lg font-bold">
+                Bloggr
+              </SheetTitle>
+            </SheetHeader>
+
+            <div className="flex flex-col gap-4 py-6">
+              <Link
+                href="/"
+                onClick={() => setMobileOpen(false)}
+                className="text-base font-medium text-foreground hover:text-accent-solid transition-colors"
+              >
+                Articles
+              </Link>
+
+              {user ? (
+                <>
+                  {isAuthor && (
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-2 text-base font-medium text-foreground hover:text-accent-solid transition-colors"
+                    >
+                      <LayoutDashboard className="size-4 text-muted-foreground" />
+                      <span>Author Studio</span>
+                    </Link>
+                  )}
+
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-2 text-base font-medium text-foreground hover:text-accent-solid transition-colors"
+                    >
+                      <Shield className="size-4 text-muted-foreground" />
+                      <span>Admin Panel</span>
+                    </Link>
+                  )}
+
+                  {isReader && (
+                    <Link
+                      href="/settings/author-request"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-2 text-base font-medium text-foreground hover:text-accent-solid transition-colors"
+                    >
+                      <Sparkles className="size-4 text-accent-warm" />
+                      <span>Become an Author</span>
+                    </Link>
+                  )}
+
+                  <Link
+                    href="/settings"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2 text-base font-medium text-foreground hover:text-accent-solid transition-colors"
+                  >
+                    <Settings className="size-4 text-muted-foreground" />
+                    <span>Settings</span>
+                  </Link>
+                </>
+              ) : (
+                <div className="flex flex-col gap-2 pt-4">
+                  <Button asChild variant="outline" className="w-full justify-center">
+                    <Link href="/login" onClick={() => setMobileOpen(false)}>
+                      Sign in
+                    </Link>
+                  </Button>
+                  <Button asChild className="w-full justify-center bg-accent-solid text-white hover:bg-accent-solid/90">
+                    <Link href="/register" onClick={() => setMobileOpen(false)}>
+                      Get Started
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {user && (
+              <div className="border-t border-border pt-4 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 overflow-hidden">
+                  <Avatar className="size-8">
+                    <AvatarImage src={user.avatar_url || user.picture} alt={displayName} />
+                    <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                  </Avatar>
+                  <div className="truncate">
+                    <p className="text-xs font-semibold truncate text-foreground">{displayName}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">{user.role}</p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    logout();
+                  }}
+                  className="text-xs text-destructive hover:bg-destructive/10"
+                >
+                  <LogOut className="size-3.5" />
+                </Button>
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
+      </div>
+    </div>
   );
 }
