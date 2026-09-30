@@ -14,9 +14,11 @@ interface BlogPostCardProps {
 }
 
 export function BlogPostCard({ data, priority = false }: BlogPostCardProps) {
-  const readingTime = calculateReadingTime(data.content);
+  const readingTime = data.read_time
+    ? `${data.read_time} min read`
+    : calculateReadingTime(data.content || "");
   const formattedDate = formatDate(data.created_at);
-  const plainExcerpt = stripMarkdown(data.content);
+  const plainExcerpt = data.excerpt || stripMarkdown(data.content || "");
 
   const authorInitials = data.author_name
     ? data.author_name
@@ -55,19 +57,26 @@ export function BlogPostCard({ data, priority = false }: BlogPostCardProps) {
       </Link>
 
       <CardHeader className="flex flex-col gap-2 p-5 pb-3">
-        {data.tags && data.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {data.tags.slice(0, 2).map((tag) => (
-              <Badge
-                key={tag}
-                variant="secondary"
-                className="font-mono text-[11px] font-medium text-muted-foreground hover:text-foreground"
-              >
-                #{tag}
-              </Badge>
-            ))}
-          </div>
-        )}
+        <div className="flex items-center justify-between gap-2">
+          {data.tags && data.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {data.tags.slice(0, 2).map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="secondary"
+                  className="font-mono text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                >
+                  #{tag}
+                </Badge>
+              ))}
+            </div>
+          )}
+          {data.is_featured && (
+            <Badge className="bg-accent-solid/15 text-accent-solid border-accent-solid/30 text-[10px]">
+              Featured
+            </Badge>
+          )}
+        </div>
 
         <Link
           href={`/post/${data.slug}`}
@@ -86,25 +95,35 @@ export function BlogPostCard({ data, priority = false }: BlogPostCardProps) {
       </CardContent>
 
       <CardFooter className="mt-4 flex items-center justify-between border-t border-border/40 p-5 pt-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
+        <Link
+          href={`/authors/${data.author_id}`}
+          className="flex items-center gap-2 group/author hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-xs"
+        >
           <Avatar className="size-6 border border-border">
             <AvatarFallback className="bg-muted text-[10px] font-semibold text-foreground">
               {authorInitials}
             </AvatarFallback>
           </Avatar>
-          <div className="flex flex-col">
-            <span className="font-medium text-foreground">{data.author_name}</span>
+          <div className="flex flex-col text-left">
+            <span className="font-medium text-foreground group-hover/author:text-accent-solid transition-colors">
+              {data.author_name}
+            </span>
             <div className="flex items-center gap-1.5 text-[11px]">
               <time dateTime={data.created_at}>{formattedDate}</time>
               <span>•</span>
               <span>{readingTime}</span>
             </div>
           </div>
-        </div>
+        </Link>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1" title={`${data.likes_count} likes`}>
-            <Heart className="size-3.5" />
+          <div
+            className={`flex items-center gap-1 ${
+              data.liked_by_me ? "text-red-500 font-medium" : ""
+            }`}
+            title={`${data.likes_count} likes`}
+          >
+            <Heart className={`size-3.5 ${data.liked_by_me ? "fill-red-500" : ""}`} />
             <span>{data.likes_count}</span>
           </div>
           <div className="flex items-center gap-1" title={`${data.comments_count} comments`}>
