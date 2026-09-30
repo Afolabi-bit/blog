@@ -20,7 +20,7 @@ function parseJwtPayload(token: string): JwtClaims | null {
 }
 
 // Routes that can be viewed without authentication
-const PUBLIC_PATHS = ["/", "/post"];
+const PUBLIC_PATHS = ["/", "/post", "/authors"];
 const AUTH_ONLY_GUEST_PATHS = ["/login", "/register"];
 
 function isPublicPath(pathname: string): boolean {
