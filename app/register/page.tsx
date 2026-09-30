@@ -6,48 +6,81 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/general/AuthProvider";
 import { authEndpoints } from "@/lib/endpoints";
+import { RegisterSchema } from "@/lib/validations";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AlertCircle, Loader2, UserPlus } from "lucide-react";
 
 export default function RegisterPage() {
   const { setUser } = useAuth();
   const router = useRouter();
 
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    role: "reader" as "reader" | "author",
+  });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
+    if (formError) setFormError(null);
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setFormError(null);
+    setFieldErrors({});
+
+    const result = RegisterSchema.safeParse(formData);
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of result.error.issues) {
+        if (issue.path[0]) {
+          errors[String(issue.path[0])] = issue.message;
+        }
+      }
+      setFieldErrors(errors);
+      return;
+    }
 
     startTransition(async () => {
       try {
-        const response = await authEndpoints.register({
-          username,
-          email,
-          password,
-        });
+        const response = await authEndpoints.register(result.data);
         const user = response.data?.user ?? null;
         if (user) {
           setUser(user);
         }
         toast.success(response.message || "Account created successfully!");
-        router.push("/dashboard");
+        router.push(result.data.role === "author" ? "/dashboard" : "/");
         router.refresh();
       } catch (err: unknown) {
-        let msg = "Registration failed";
+        let msg = "Registration failed. Please check your information and try again.";
         if (axios.isAxiosError(err)) {
           msg =
             err.response?.data?.message ||
@@ -57,85 +90,184 @@ export default function RegisterPage() {
         } else if (err instanceof Error) {
           msg = err.message;
         }
-        setError(msg);
+        setFormError(msg);
         toast.error(msg);
       }
     });
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Create an account</CardTitle>
-          <CardDescription>
-            Join Bloggr and start sharing your ideas
+    <div className="flex min-h-[75vh] items-center justify-center py-10 px-4">
+      <Card className="w-full max-w-lg border-border bg-card shadow-sm">
+        <CardHeader className="text-center">
+          <CardTitle className="font-serif text-2xl font-bold tracking-tight text-foreground">
+            Create your account
+          </CardTitle>
+          <CardDescription className="text-muted-foreground">
+            Join a community of readers and writers on Bloggr.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {error && (
-              <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4.5">
+            {formError && (
+              <Alert variant="destructive">
+                <AlertCircle className="size-4" />
+                <AlertTitle>Registration error</AlertTitle>
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
             )}
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="johndoe"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                minLength={3}
-                disabled={isPending}
-              />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="firstName" className="text-sm font-medium text-foreground">
+                  First name
+                </Label>
+                <Input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  autoComplete="given-name"
+                  placeholder="Jane"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  disabled={isPending}
+                  aria-invalid={Boolean(fieldErrors.firstName)}
+                  aria-describedby={
+                    fieldErrors.firstName ? "firstName-error" : undefined
+                  }
+                  className="bg-background"
+                />
+                {fieldErrors.firstName && (
+                  <p id="firstName-error" className="text-xs text-destructive">
+                    {fieldErrors.firstName}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="lastName" className="text-sm font-medium text-foreground">
+                  Last name
+                </Label>
+                <Input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  autoComplete="family-name"
+                  placeholder="Doe"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  disabled={isPending}
+                  aria-invalid={Boolean(fieldErrors.lastName)}
+                  aria-describedby={
+                    fieldErrors.lastName ? "lastName-error" : undefined
+                  }
+                  className="bg-background"
+                />
+                {fieldErrors.lastName && (
+                  <p id="lastName-error" className="text-xs text-destructive">
+                    {fieldErrors.lastName}
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">Email</Label>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                Email address
+              </Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                autoComplete="email"
+                placeholder="jane@example.com"
+                value={formData.email}
+                onChange={handleChange}
                 disabled={isPending}
+                aria-invalid={Boolean(fieldErrors.email)}
+                aria-describedby={fieldErrors.email ? "email-error" : undefined}
+                className="bg-background"
               />
+              {fieldErrors.email && (
+                <p id="email-error" className="text-xs text-destructive">
+                  {fieldErrors.email}
+                </p>
+              )}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="password" className="text-sm font-medium text-foreground">
+                Password
+              </Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
-                placeholder="Min. 8 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
+                autoComplete="new-password"
+                placeholder="At least 6 characters"
+                value={formData.password}
+                onChange={handleChange}
                 disabled={isPending}
+                aria-invalid={Boolean(fieldErrors.password)}
+                aria-describedby={
+                  fieldErrors.password ? "password-error" : undefined
+                }
+                className="bg-background"
               />
+              {fieldErrors.password && (
+                <p id="password-error" className="text-xs text-destructive">
+                  {fieldErrors.password}
+                </p>
+              )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? "Creating account…" : "Create account"}
-            </Button>
-
-            <p className="text-center text-sm text-gray-600">
-              Already have an account?{" "}
-              <Link
-                href="/login"
-                className="font-medium text-[#ef862b] hover:underline"
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="role" className="text-sm font-medium text-foreground">
+                I want to join primarily as
+              </Label>
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                disabled={isPending}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
               >
-                Sign in
-              </Link>
-            </p>
+                <option value="reader">Reader — Read, bookmark, and discuss articles</option>
+                <option value="author">Author — Publish articles and manage studio</option>
+              </select>
+            </div>
+
+            <Button
+              type="submit"
+              className="mt-2 w-full bg-accent-solid text-white hover:bg-accent-solid/90"
+              disabled={isPending}
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <span>Creating account…</span>
+                </>
+              ) : (
+                <>
+                  <UserPlus className="mr-2 size-4" />
+                  <span>Create account</span>
+                </>
+              )}
+            </Button>
           </form>
         </CardContent>
+        <CardFooter className="flex justify-center border-t border-border/50 pt-4 text-sm text-muted-foreground">
+          <p>
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="font-medium text-accent-solid hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-xs"
+            >
+              Sign in
+            </Link>
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );
