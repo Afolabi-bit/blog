@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { Post } from "@/lib/types";
+import type { Post, AuthorStats } from "@/lib/types";
 import {
   BookOpen,
   Edit3,
@@ -35,19 +35,24 @@ import { formatDate } from "@/lib/utils";
 
 interface AuthorPostListProps {
   initialPosts: Post[];
+  initialStats?: AuthorStats;
 }
 
-export function AuthorPostList({ initialPosts }: AuthorPostListProps) {
+export function AuthorPostList({ initialPosts, initialStats }: AuthorPostListProps) {
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Stats calculation
-  const totalPosts = posts.length;
+  // Stats calculation (use server stats from /api/my-posts/stats if available, fallback to client)
+  const totalPostsCount = initialStats?.total_posts ?? posts.length;
+  const publishedCount = initialStats?.published_posts ?? posts.filter((p) => p.status === "published").length;
+  const draftCount = initialStats?.draft_posts ?? posts.filter((p) => p.status === "draft").length;
+  const totalLikes = initialStats?.total_likes ?? posts.reduce((sum, p) => sum + (p.likes_count || 0), 0);
+  const totalComments = initialStats?.total_comments ?? posts.reduce((sum, p) => sum + (p.comments_count || 0), 0);
+
   const publishedPosts = posts.filter((p) => p.status === "published");
   const draftPosts = posts.filter((p) => p.status === "draft");
-  const totalLikes = posts.reduce((sum, p) => sum + (p.likes_count || 0), 0);
 
   const filteredPosts =
     filter === "all"
@@ -84,13 +89,13 @@ export function AuthorPostList({ initialPosts }: AuthorPostListProps) {
   return (
     <div className="flex flex-col gap-8">
       {/* Stats Summary Grid */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <Card className="p-4 bg-card border-border shadow-2xs">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
             Total Articles
           </p>
           <p className="mt-1 text-2xl font-bold font-serif text-foreground">
-            {totalPosts}
+            {totalPostsCount}
           </p>
         </Card>
 
@@ -99,7 +104,7 @@ export function AuthorPostList({ initialPosts }: AuthorPostListProps) {
             Published
           </p>
           <p className="mt-1 text-2xl font-bold font-serif text-foreground">
-            {publishedPosts.length}
+            {publishedCount}
           </p>
         </Card>
 
@@ -108,7 +113,7 @@ export function AuthorPostList({ initialPosts }: AuthorPostListProps) {
             Drafts
           </p>
           <p className="mt-1 text-2xl font-bold font-serif text-foreground">
-            {draftPosts.length}
+            {draftCount}
           </p>
         </Card>
 
@@ -118,6 +123,15 @@ export function AuthorPostList({ initialPosts }: AuthorPostListProps) {
           </p>
           <p className="mt-1 text-2xl font-bold font-serif text-accent-warm">
             {totalLikes}
+          </p>
+        </Card>
+
+        <Card className="p-4 bg-card border-border shadow-2xs col-span-2 sm:col-span-1">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
+            Comments
+          </p>
+          <p className="mt-1 text-2xl font-bold font-serif text-foreground">
+            {totalComments}
           </p>
         </Card>
       </div>
@@ -135,7 +149,7 @@ export function AuthorPostList({ initialPosts }: AuthorPostListProps) {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            All ({totalPosts})
+            All ({posts.length})
           </Button>
           <Button
             variant="ghost"
