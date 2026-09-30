@@ -12,11 +12,16 @@ import { Heart } from "lucide-react";
 interface LikeButtonProps {
   postId: string;
   initialLikesCount: number;
+  initialLiked?: boolean;
 }
 
-export function LikeButton({ postId, initialLikesCount }: LikeButtonProps) {
+export function LikeButton({
+  postId,
+  initialLikesCount,
+  initialLiked = false,
+}: LikeButtonProps) {
   const router = useRouter();
-  const [liked, setLiked] = useState<boolean>(false);
+  const [liked, setLiked] = useState<boolean>(initialLiked);
   const [likesCount, setLikesCount] = useState<number>(initialLikesCount);
   const [loading, setLoading] = useState<boolean>(false);
 
