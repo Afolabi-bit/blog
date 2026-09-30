@@ -1,11 +1,19 @@
 import apiClient from "@/lib/client";
-import type { ApiResponse, Post, PostsResponse } from "@/lib/types";
+import type {
+  ApiResponse,
+  Post,
+  PostsResponse,
+  AuthorProfile,
+  TagItem,
+  AuthorStats,
+} from "@/lib/types";
 
 export interface PostsQueryParams {
   limit?: number;
   cursor?: string;
   tag?: string;
   search?: string;
+  author_id?: string;
 }
 
 export interface CreatePostPayload {
@@ -29,6 +37,26 @@ export const postsEndpoints = {
     const response = await apiClient.get<ApiResponse<PostsResponse>>("/api/posts", {
       params,
     });
+    return response.data;
+  },
+
+  getFeaturedPost: async () => {
+    const response = await apiClient.get<ApiResponse<Post>>("/api/posts/featured");
+    return response.data;
+  },
+
+  getTags: async () => {
+    const response = await apiClient.get<ApiResponse<{ tags: TagItem[] }>>("/api/tags");
+    return response.data;
+  },
+
+  getAuthorProfile: async (id: string) => {
+    const response = await apiClient.get<ApiResponse<AuthorProfile>>(`/api/authors/${id}`);
+    return response.data;
+  },
+
+  getMyStats: async () => {
+    const response = await apiClient.get<ApiResponse<AuthorStats>>("/api/my-posts/stats");
     return response.data;
   },
 
