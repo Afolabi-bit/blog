@@ -6,45 +6,75 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/general/AuthProvider";
 import { authEndpoints } from "@/lib/endpoints";
+import { LoginSchema } from "@/lib/validations";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AlertCircle, Loader2, LogIn } from "lucide-react";
 
 export default function LoginPage() {
   const { setUser } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") ?? "/dashboard";
+  const redirect = searchParams.get("redirect") ?? "/";
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
+    if (formError) setFormError(null);
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setFormError(null);
+    setFieldErrors({});
+
+    const result = LoginSchema.safeParse(formData);
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of result.error.issues) {
+        if (issue.path[0]) {
+          errors[String(issue.path[0])] = issue.message;
+        }
+      }
+      setFieldErrors(errors);
+      return;
+    }
 
     startTransition(async () => {
       try {
-        const response = await authEndpoints.login({ email, password });
+        const response = await authEndpoints.login(result.data);
         const user = response.data?.user ?? null;
         if (user) {
           setUser(user);
         }
-        toast.success(response.message || "Logged in successfully!");
+        toast.success(response.message || "Signed in successfully");
         router.push(redirect);
         router.refresh();
       } catch (err: unknown) {
-        let msg = "Invalid email or password";
+        let msg = "Invalid email or password. Please check your credentials.";
         if (axios.isAxiosError(err)) {
           msg =
             err.response?.data?.message ||
@@ -54,68 +84,118 @@ export default function LoginPage() {
         } else if (err instanceof Error) {
           msg = err.message;
         }
-        setError(msg);
+        setFormError(msg);
         toast.error(msg);
       }
     });
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Welcome back</CardTitle>
-          <CardDescription>Sign in to your Bloggr account</CardDescription>
+    <div className="flex min-h-[75vh] items-center justify-center py-10 px-4">
+      <Card className="w-full max-w-md border-border bg-card shadow-sm">
+        <CardHeader className="text-center">
+          <CardTitle className="font-serif text-2xl font-bold tracking-tight text-foreground">
+            Welcome back
+          </CardTitle>
+          <CardDescription className="text-muted-foreground">
+            Sign in to your account to write, comment, and bookmark articles.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {error && (
-              <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4.5">
+            {formError && (
+              <Alert variant="destructive">
+                <AlertCircle className="size-4" />
+                <AlertTitle>Unable to sign in</AlertTitle>
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
             )}
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">Email</Label>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                Email address
+              </Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                autoComplete="email"
+                placeholder="reader@example.com"
+                value={formData.email}
+                onChange={handleChange}
                 disabled={isPending}
+                aria-invalid={Boolean(fieldErrors.email)}
+                aria-describedby={fieldErrors.email ? "email-error" : undefined}
+                className="bg-background"
               />
+              {fieldErrors.email && (
+                <p id="email-error" className="text-xs text-destructive">
+                  {fieldErrors.email}
+                </p>
+              )}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="password"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Password
+                </Label>
+              </div>
               <Input
                 id="password"
+                name="password"
                 type="password"
+                autoComplete="current-password"
                 placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                value={formData.password}
+                onChange={handleChange}
                 disabled={isPending}
+                aria-invalid={Boolean(fieldErrors.password)}
+                aria-describedby={
+                  fieldErrors.password ? "password-error" : undefined
+                }
+                className="bg-background"
               />
+              {fieldErrors.password && (
+                <p id="password-error" className="text-xs text-destructive">
+                  {fieldErrors.password}
+                </p>
+              )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? "Signing in…" : "Sign in"}
+            <Button
+              type="submit"
+              className="mt-2 w-full bg-accent-solid text-white hover:bg-accent-solid/90"
+              disabled={isPending}
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <span>Signing in…</span>
+                </>
+              ) : (
+                <>
+                  <LogIn className="mr-2 size-4" />
+                  <span>Sign in</span>
+                </>
+              )}
             </Button>
-
-            <p className="text-center text-sm text-gray-600">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/register"
-                className="font-medium text-[#ef862b] hover:underline"
-              >
-                Sign up
-              </Link>
-            </p>
           </form>
         </CardContent>
+        <CardFooter className="flex justify-center border-t border-border/50 pt-4 text-sm text-muted-foreground">
+          <p>
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/register"
+              className="font-medium text-accent-solid hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-xs"
+            >
+              Create an account
+            </Link>
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );
