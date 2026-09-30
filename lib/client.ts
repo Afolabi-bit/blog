@@ -3,9 +3,34 @@ import axios, {
   InternalAxiosRequestConfig,
   AxiosResponse,
 } from "axios";
+import type { ApiResponse, AuthUser } from "./types";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://go-blog-k1kn.onrender.com";
+
+// ─── Error & Unwrap Helpers ──────────────────────────────────────────────────
+
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly message: string,
+    public readonly raw?: unknown,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export function unwrap<T>(response: AxiosResponse<ApiResponse<T>>): T {
+  const data = response.data;
+  if (!data) {
+    throw new ApiError(response.status, "Empty response received");
+  }
+  if (data.status === "error") {
+    throw new ApiError(response.status, data.message || "An error occurred", data);
+  }
+  return data.data as T;
+}
 
 // ─── Token Management Helpers ────────────────────────────────────────────────
 // Kept in localStorage for client persistence and synced to document.cookie
@@ -42,8 +67,6 @@ export function clearStoredTokens() {
   document.cookie = `refresh_token=; path=/; max-age=0; SameSite=Lax`;
 }
 
-import type { AuthUser } from "./types";
-
 export function getStoredUser(): AuthUser | null {
   if (typeof window === "undefined") return null;
   const user = localStorage.getItem("auth_user");
@@ -59,6 +82,18 @@ export function setStoredUser(user: AuthUser) {
   localStorage.setItem("auth_user", JSON.stringify(user));
 }
 
+// ─── Cold Start Event Helper ─────────────────────────────────────────────────
+
+let activeColdStartRequests = 0;
+
+function notifyColdStart(waking: boolean) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("bloggr:cold-start", { detail: { waking } }),
+    );
+  }
+}
+
 // ─── Axios Instance ──────────────────────────────────────────────────────────
 
 export const apiClient = axios.create({
@@ -68,17 +103,31 @@ export const apiClient = axios.create({
   },
 });
 
+type CustomConfig = InternalAxiosRequestConfig & {
+  _coldStartTimer?: NodeJS.Timeout;
+  _retry?: boolean;
+};
+
 // ─── Request Interceptor ─────────────────────────────────────────────────────
 
-apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+apiClient.interceptors.request.use((config: CustomConfig) => {
   const token = getStoredAccessToken();
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // 3-second threshold for Render free-tier cold-start indicator
+  if (typeof window !== "undefined") {
+    config._coldStartTimer = setTimeout(() => {
+      activeColdStartRequests++;
+      notifyColdStart(true);
+    }, 3000);
+  }
+
   return config;
 });
 
-// ─── Response Interceptor (Silent Refresh on 401) ─────────────────────────────
+// ─── Response Interceptor (Silent Refresh on 401 & Cold Start Clear) ──────────
 
 let isRefreshing = false;
 let failedQueue: Array<{
@@ -87,12 +136,26 @@ let failedQueue: Array<{
   config: InternalAxiosRequestConfig;
 }> = [];
 
+function clearColdStart(config?: CustomConfig) {
+  if (config?._coldStartTimer) {
+    clearTimeout(config._coldStartTimer);
+  }
+  if (activeColdStartRequests > 0) {
+    activeColdStartRequests--;
+    if (activeColdStartRequests === 0) {
+      notifyColdStart(false);
+    }
+  }
+}
+
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    clearColdStart(response.config as CustomConfig);
+    return response;
+  },
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & {
-      _retry?: boolean;
-    };
+    const originalRequest = error.config as CustomConfig;
+    clearColdStart(originalRequest);
 
     if (!originalRequest || error.response?.status !== 401 || originalRequest._retry) {
       return Promise.reject(error);
@@ -121,7 +184,7 @@ apiClient.interceptors.response.use(
         throw new Error("No refresh token available");
       }
 
-      // Call Go backend /auth/refresh directly with axios
+      // Call Go backend /auth/refresh directly
       const { data } = await axios.post(
         `${API_BASE_URL}/auth/refresh`,
         { refresh_token: refreshToken },
@@ -129,7 +192,8 @@ apiClient.interceptors.response.use(
       );
 
       const newAccessToken = data.data?.token || data.token;
-      const newRefreshToken = data.data?.refresh_token || data.refresh_token || refreshToken;
+      const newRefreshToken =
+        data.data?.refresh_token || data.refresh_token || refreshToken;
 
       if (!newAccessToken) {
         throw new Error("Invalid token refresh response");
