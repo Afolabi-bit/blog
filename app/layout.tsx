@@ -12,9 +12,27 @@ import { getServerSession } from "@/lib/auth";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
-  title: "Bloggr — Distraction-Free Reading and Publishing",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://bloggr.dev"),
+  title: {
+    default: "Bloggr — Distraction-Free Reading and Publishing",
+    template: "%s — Bloggr",
+  },
   description:
     "A modern blogging platform built with editorial craft, fast typography, and developer workflows.",
+  openGraph: {
+    title: "Bloggr — Distraction-Free Reading and Publishing",
+    description:
+      "A modern blogging platform built with editorial craft, fast typography, and developer workflows.",
+    type: "website",
+    url: "/",
+    siteName: "Bloggr",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Bloggr — Distraction-Free Reading and Publishing",
+    description:
+      "A modern blogging platform built with editorial craft, fast typography, and developer workflows.",
+  },
 };
 
 export default async function RootLayout({
