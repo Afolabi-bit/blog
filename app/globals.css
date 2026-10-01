@@ -50,10 +50,28 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-base: 0.625rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-pill: 9999px;
+
+  --text-xs: 0.75rem / 1rem;
+  --text-sm: 0.875rem / 1.25rem;
+  --text-base: 1rem / 1.625rem;
+  --text-md: 1.125rem / 1.75rem;
+  --text-lg: 1.25rem / 1.75rem;
+  --text-xl: 1.5rem / 2rem;
+  --text-2xl: 1.875rem / 2.25rem;
+  --text-3xl: 2.25rem / 2.5rem;
+  --text-4xl: 3rem / 1.1;
 }
 
 :root {
@@ -188,6 +206,8 @@
   font-family: var(--font-serif), Georgia, serif;
   font-size: 1.125rem; /* 18px */
   line-height: 1.8;
+  max-width: 72ch;
+  font-optical-sizing: auto;
 }
 
 .prose-bloggr h1,
