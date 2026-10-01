@@ -1,33 +1,41 @@
 import { Suspense } from "react";
-import { BlogPostCard } from "@/components/general/BlogPostCard";
 import { FeaturedPostHero } from "@/components/post/FeaturedPostHero";
 import { TagRail } from "@/components/post/TagRail";
+import { FeedSearch } from "@/components/post/FeedSearch";
+import { FeedList } from "@/components/post/FeedList";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { postsEndpoints } from "@/lib/endpoints";
 import Link from "next/link";
-import { PenSquare, BookOpen } from "lucide-react";
+import { PenSquare } from "lucide-react";
+import type { Post, PaginationMeta } from "@/lib/types";
 
 export const revalidate = 60;
 
 interface PageProps {
-  searchParams: Promise<{ tag?: string; search?: string; cursor?: string }>;
+  searchParams: Promise<{ tag?: string; search?: string; q?: string; cursor?: string }>;
 }
 
-async function getPostsData(tag?: string, search?: string) {
+async function getPostsData(
+  tag?: string,
+  search?: string
+): Promise<{ posts: Post[]; pagination?: PaginationMeta }> {
   try {
     const data = await postsEndpoints.getPosts({
       tag: tag || undefined,
       search: search || undefined,
       limit: 12,
     });
-    return data.data?.posts ?? [];
+    return {
+      posts: data.data?.posts ?? [],
+      pagination: data.data?.pagination,
+    };
   } catch {
-    return [];
+    return { posts: [], pagination: undefined };
   }
 }
 
-async function getFeaturedData() {
+async function getFeaturedData(): Promise<Post | null> {
   try {
     const data = await postsEndpoints.getFeaturedPost();
     return data.data ?? null;
@@ -49,7 +57,7 @@ async function getTagsData() {
 export default async function HomePage({ searchParams }: PageProps) {
   const params = await searchParams;
   const activeTag = params.tag;
-  const activeSearch = params.search;
+  const activeSearch = params.q || params.search;
 
   return (
     <div className="py-4">
@@ -69,11 +77,13 @@ async function FeedContent({
 }) {
   const hasFilter = Boolean(activeTag || activeSearch);
 
-  const [posts, featuredPost, tagsData] = await Promise.all([
+  const [postsResult, featuredPost, tagsData] = await Promise.all([
     getPostsData(activeTag, activeSearch),
     !hasFilter ? getFeaturedData() : Promise.resolve(null),
     getTagsData(),
   ]);
+
+  const { posts, pagination } = postsResult;
 
   // Use tags from /api/tags, fallback to unique post tags if tags endpoint returns empty
   const tags =
@@ -90,71 +100,60 @@ async function FeedContent({
       ? posts.filter((p) => p.id !== featuredPost.id)
       : posts;
 
+  const hasFeaturedHero = Boolean(featuredPost && !hasFilter);
+
   return (
     <div>
       {/* Featured Lead Story (shown when browsing root feed without filters and a featured post exists) */}
-      {featuredPost && <FeaturedPostHero post={featuredPost} />}
+      {hasFeaturedHero && featuredPost && <FeaturedPostHero post={featuredPost} />}
 
-      {/* Section Header & Tag Filter Rail */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+      {/* Section Header with single <h1>, Search bar & Write action */}
+      <div className="mb-6 flex flex-col gap-4 border-b border-border/50 pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-serif text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          <h1 className="font-serif text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
             {activeTag
               ? `Articles tagged #${activeTag}`
               : activeSearch
                 ? `Results for "${activeSearch}"`
                 : "Latest Articles"}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Discover in-depth engineering breakdowns, patterns, and essays.
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1 max-w-xl">
+            {activeSearch
+              ? `Showing stories matching your search keyword.`
+              : activeTag
+                ? `In-depth technical writing categorized under #${activeTag}.`
+                : "Discover in-depth engineering breakdowns, architectural patterns, and essays."}
           </p>
         </div>
 
-        <Button asChild size="sm" variant="outline" className="hidden sm:inline-flex gap-1.5 h-8">
-          <Link href="/dashboard">
-            <PenSquare className="size-3.5 text-accent-solid" />
-            <span>Write an article</span>
-          </Link>
-        </Button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          <FeedSearch initialSearch={activeSearch} />
+
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="hidden lg:inline-flex gap-1.5 h-10 px-4 rounded-full border-border hover:bg-muted font-medium text-xs shrink-0"
+          >
+            <Link href="/dashboard">
+              <PenSquare className="size-3.5 text-accent-solid" />
+              <span>Write</span>
+            </Link>
+          </Button>
+        </div>
       </div>
 
+      {/* Tag Filter Rail */}
       <TagRail tags={tags} activeTag={activeTag} />
 
-      {/* Empty State */}
-      {posts.length === 0 && (
-        <div className="my-12 rounded-xl border border-dashed border-border bg-card/60 p-12 text-center">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground mb-4">
-            <BookOpen className="size-6" />
-          </div>
-          <h3 className="font-serif text-lg font-bold text-foreground">
-            No articles found
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">
-            {activeTag
-              ? `There are no published articles with the tag #${activeTag} yet.`
-              : "No published articles available at this time."}
-          </p>
-          <div className="mt-6 flex justify-center gap-3">
-            {hasFilter && (
-              <Button asChild variant="outline" size="sm">
-                <Link href="/">Clear tag filter</Link>
-              </Button>
-            )}
-            <Button asChild size="sm" className="bg-accent-solid text-white hover:bg-accent-solid/90">
-              <Link href="/dashboard">Create first post</Link>
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Post Grid */}
-      {gridPosts.length > 0 && (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {gridPosts.map((post, idx) => (
-            <BlogPostCard key={post.id} data={post} priority={idx < 2} />
-          ))}
-        </div>
-      )}
+      {/* Paginated Feed List with Magazine Layout */}
+      <FeedList
+        initialPosts={gridPosts}
+        initialPagination={pagination}
+        hasFeaturedHero={hasFeaturedHero}
+        activeTag={activeTag}
+        activeSearch={activeSearch}
+      />
     </div>
   );
 }
