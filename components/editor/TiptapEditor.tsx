@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import Placeholder from "@tiptap/extension-placeholder";
 import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 import { Markdown } from "tiptap-markdown";
 import axios from "axios";
@@ -104,6 +106,9 @@ export function TiptapEditor({
         tightLists: true,
         bulletListMarker: "-",
       }),
+      Placeholder.configure({
+        placeholder: "Start writing…",
+      }),
     ],
     content,
     editable: !disabled,
@@ -129,6 +134,17 @@ export function TiptapEditor({
       setSourceContent(content);
     }
   }, [content, editor, sourceContent]);
+
+  // Escape key dismisses active selection / bubble menu
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && editor && editor.isFocused) {
+        window.getSelection()?.removeAllRanges();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editor]);
 
   // Switch between WYSIWYG and Source mode
   const handleToggleSourceMode = useCallback(() => {
@@ -178,6 +194,12 @@ export function TiptapEditor({
         .setLink({ href: finalUrl })
         .run();
     }
+    setLinkDialogOpen(false);
+  };
+
+  const handleRemoveLink = () => {
+    if (!editor) return;
+    editor.chain().focus().extendMarkRange("link").unsetLink().run();
     setLinkDialogOpen(false);
   };
 
@@ -256,8 +278,8 @@ export function TiptapEditor({
       {/* Editor Toolbar */}
       <div
         role="toolbar"
-        aria-label="Article formatting toolbar"
-        className="flex flex-wrap items-center gap-1 border-b border-border/60 bg-muted/40 p-2 sm:gap-1.5"
+        aria-label="Text formatting"
+        className="flex flex-wrap items-center gap-1 border-b border-border/60 bg-muted/40 p-2 sm:gap-1.5 max-sm:fixed max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:z-40 max-sm:border-t max-sm:border-border max-sm:bg-background/95 max-sm:backdrop-blur-md max-sm:p-2 max-sm:shadow-lg max-sm:overflow-x-auto max-sm:flex-nowrap"
       >
         {/* Mode Switcher */}
         <div className="flex items-center rounded-md border border-border bg-background p-0.5 mr-1 shadow-2xs">
@@ -571,6 +593,40 @@ export function TiptapEditor({
           <TooltipContent>Code Block</TooltipContent>
         </Tooltip>
 
+        {editor.isActive("codeBlock") && (
+          <div className="flex items-center gap-1.5 px-1">
+            <label htmlFor="lang-select" className="text-xs font-mono text-muted-foreground">
+              Language
+            </label>
+            <select
+              id="lang-select"
+              aria-label="Language"
+              value={editor.getAttributes("codeBlock").language || "text"}
+              onChange={(e) =>
+                editor
+                  .chain()
+                  .focus()
+                  .updateAttributes("codeBlock", { language: e.target.value })
+                  .run()
+              }
+              className="h-7 rounded-md border border-border bg-background px-2 py-0.5 font-mono text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-accent-solid"
+            >
+              <option value="text">text</option>
+              <option value="typescript">typescript</option>
+              <option value="javascript">javascript</option>
+              <option value="go">go</option>
+              <option value="python">python</option>
+              <option value="rust">rust</option>
+              <option value="html">html</option>
+              <option value="css">css</option>
+              <option value="json">json</option>
+              <option value="bash">bash</option>
+              <option value="sql">sql</option>
+              <option value="markdown">markdown</option>
+            </select>
+          </div>
+        )}
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -661,6 +717,69 @@ export function TiptapEditor({
 
       {/* Editor Surface */}
       <div className="relative flex-1 bg-background">
+        {!isSourceMode && editor && (
+          <BubbleMenu
+            editor={editor}
+            className="flex items-center gap-0.5 rounded-lg border border-border bg-popover/95 p-1 shadow-lg text-popover-foreground backdrop-blur-xs"
+          >
+            <Button
+              type="button"
+              variant={editor.isActive("bold") ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              aria-label="Bold (Ctrl+B)"
+              aria-pressed={editor.isActive("bold")}
+              className="size-7 p-0"
+            >
+              <Bold className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant={editor.isActive("italic") ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              aria-label="Italic (Ctrl+I)"
+              aria-pressed={editor.isActive("italic")}
+              className="size-7 p-0"
+            >
+              <Italic className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant={editor.isActive("strike") ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              aria-label="Strikethrough"
+              aria-pressed={editor.isActive("strike")}
+              className="size-7 p-0"
+            >
+              <Strikethrough className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant={editor.isActive("code") ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleCode().run()}
+              aria-label="Inline Code"
+              aria-pressed={editor.isActive("code")}
+              className="size-7 p-0"
+            >
+              <Code className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant={editor.isActive("link") ? "secondary" : "ghost"}
+              size="sm"
+              onClick={handleOpenLinkDialog}
+              aria-label="Link (Ctrl+K)"
+              aria-pressed={editor.isActive("link")}
+              className="size-7 p-0"
+            >
+              <Link2 className="size-3.5" />
+            </Button>
+          </BubbleMenu>
+        )}
+
         {isSourceMode ? (
           <Textarea
             value={sourceContent}
@@ -681,9 +800,9 @@ export function TiptapEditor({
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleSetLink}>
             <DialogHeader>
-              <DialogTitle>Insert Link</DialogTitle>
+              <DialogTitle>Add link</DialogTitle>
               <DialogDescription>
-                Enter the web URL for the link. URLs starting with http:// or https:// will open in a new tab.
+                Enter the destination web URL for this link.
               </DialogDescription>
             </DialogHeader>
 
@@ -695,21 +814,36 @@ export function TiptapEditor({
                 placeholder="https://example.com"
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
+                aria-label="URL"
                 autoFocus
               />
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setLinkDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" className="bg-accent-solid text-white hover:bg-accent-solid/90">
-                Save Link
-              </Button>
+            <DialogFooter className="flex items-center justify-between sm:justify-between w-full">
+              {editor?.isActive("link") ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemoveLink}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs"
+                >
+                  Remove link
+                </Button>
+              ) : <div />}
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLinkDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" className="bg-accent-solid text-white hover:bg-accent-solid/90">
+                  Add link
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </DialogContent>
