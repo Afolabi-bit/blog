@@ -100,52 +100,52 @@ export function AuthorPostList({ initialPosts, initialStats }: AuthorPostListPro
   return (
     <div className="flex flex-col gap-8">
       {/* Stats Summary Grid */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <Card className="p-4 bg-card border-border shadow-2xs">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <div className="p-4 rounded-xl bg-card border border-border shadow-2xs">
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
             Total Articles
-          </p>
-          <p className="mt-1 text-2xl font-bold font-serif text-foreground">
+          </dt>
+          <dd className="mt-1 text-2xl font-bold font-serif text-foreground tabular-nums">
             {totalPostsCount}
-          </p>
-        </Card>
+          </dd>
+        </div>
 
-        <Card className="p-4 bg-card border-border shadow-2xs">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
+        <div className="p-4 rounded-xl bg-card border border-border shadow-2xs">
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
             Published
-          </p>
-          <p className="mt-1 text-2xl font-bold font-serif text-foreground">
+          </dt>
+          <dd className="mt-1 text-2xl font-bold font-serif text-foreground tabular-nums">
             {publishedCount}
-          </p>
-        </Card>
+          </dd>
+        </div>
 
-        <Card className="p-4 bg-card border-border shadow-2xs">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
+        <div className="p-4 rounded-xl bg-card border border-border shadow-2xs">
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
             Drafts
-          </p>
-          <p className="mt-1 text-2xl font-bold font-serif text-foreground">
+          </dt>
+          <dd className="mt-1 text-2xl font-bold font-serif text-foreground tabular-nums">
             {draftCount}
-          </p>
-        </Card>
+          </dd>
+        </div>
 
-        <Card className="p-4 bg-card border-border shadow-2xs">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
+        <div className="p-4 rounded-xl bg-card border border-border shadow-2xs">
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
             Total Likes
-          </p>
-          <p className="mt-1 text-2xl font-bold font-serif text-accent-warm">
+          </dt>
+          <dd className="mt-1 text-2xl font-bold font-serif text-accent-warm tabular-nums">
             {totalLikes}
-          </p>
-        </Card>
+          </dd>
+        </div>
 
-        <Card className="p-4 bg-card border-border shadow-2xs col-span-2 sm:col-span-1">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
+        <div className="p-4 rounded-xl bg-card border border-border shadow-2xs col-span-2 sm:col-span-1">
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
             Comments
-          </p>
-          <p className="mt-1 text-2xl font-bold font-serif text-foreground">
+          </dt>
+          <dd className="mt-1 text-2xl font-bold font-serif text-foreground tabular-nums">
             {totalComments}
-          </p>
-        </Card>
-      </div>
+          </dd>
+        </div>
+      </dl>
 
       {/* Filter Tabs, Search & New Post CTA */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -204,7 +204,7 @@ export function AuthorPostList({ initialPosts, initialStats }: AuthorPostListPro
         <Button asChild size="sm" className="gap-1.5 bg-accent-solid text-white hover:bg-accent-solid/90">
           <Link href="/dashboard/create">
             <Plus className="size-4" />
-            <span>New Article</span>
+            <span>Write a post</span>
           </Link>
         </Button>
       </div>
@@ -217,17 +217,18 @@ export function AuthorPostList({ initialPosts, initialStats }: AuthorPostListPro
           </div>
           <h3 className="font-serif text-lg font-bold text-foreground">
             {filter === "all"
-              ? "You haven't written any articles yet"
+              ? "You haven't written anything yet."
               : `No ${filter} articles found`}
           </h3>
           <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto mb-6">
-            Share your knowledge, architectural insights, and engineering ideas
-            with readers on Bloggr.
+            {filter === "all"
+              ? "Write your first post to share your knowledge, architectural insights, and engineering ideas with readers on Bloggr."
+              : "Try switching the filter or creating a new article."}
           </p>
           <Button asChild className="bg-accent-solid text-white hover:bg-accent-solid/90">
             <Link href="/dashboard/create" className="gap-2">
               <PenSquare className="size-4" />
-              <span>Write your first article</span>
+              <span>Write your first post</span>
             </Link>
           </Button>
         </div>
@@ -333,11 +334,10 @@ export function AuthorPostList({ initialPosts, initialStats }: AuthorPostListPro
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete article?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this post?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete &ldquo;{postToDelete?.title}&rdquo;?
-              This will permanently delete this article, its comments, and its
-              likes. This action cannot be undone.
+              This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -347,7 +347,7 @@ export function AuthorPostList({ initialPosts, initialStats }: AuthorPostListPro
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? "Deleting…" : "Delete Article"}
+              {isDeleting ? "Deleting…" : "Delete post"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
