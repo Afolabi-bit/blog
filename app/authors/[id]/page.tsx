@@ -157,7 +157,10 @@ export default async function AuthorProfilePage({ params }: AuthorPageProps) {
               <span>•</span>
               <span className="flex items-center gap-1.5 font-medium text-foreground">
                 <FileText className="size-3.5 text-accent-solid" />
-                <span>{author.total_posts} published articles</span>
+                <span>
+                  <strong className="tabular-nums font-semibold">{author.total_posts}</strong>{" "}
+                  published articles
+                </span>
               </span>
             </div>
           </div>
@@ -189,7 +192,7 @@ export default async function AuthorProfilePage({ params }: AuthorPageProps) {
               No articles published yet
             </h3>
             <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">
-              {author.full_name} has not published any public articles yet. Check back soon!
+              {author.full_name} has not published any public articles yet. Check back soon.
             </p>
           </div>
         ) : (
