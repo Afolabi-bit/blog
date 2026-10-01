@@ -29,13 +29,13 @@ export function AvatarUploader({
   const handleFileUpload = async (file: File) => {
     const validTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     if (!validTypes.includes(file.type)) {
-      toast.error("Please upload a JPG, PNG, WEBP, or GIF image.");
+      toast.error("Unsupported format. Use JPEG, PNG, WebP, or GIF.");
       return;
     }
 
     const maxSize = 2 * 1024 * 1024; // 2MB per B12 / SET-5
     if (file.size > maxSize) {
-      toast.error("Avatar image must be 2MB or smaller.");
+      toast.error("Image too large (max 2 MB)");
       return;
     }
 
