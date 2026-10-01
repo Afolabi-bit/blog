@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
 import { toast } from "sonner";
 import { likesEndpoints } from "@/lib/endpoints";
 import { getStoredAccessToken } from "@/lib/client";
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface LikeButtonProps {
   postId: string;
@@ -21,41 +21,29 @@ export function LikeButton({
   initialLiked = false,
 }: LikeButtonProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [liked, setLiked] = useState<boolean>(initialLiked);
   const [likesCount, setLikesCount] = useState<number>(initialLikesCount);
   const [loading, setLoading] = useState<boolean>(false);
 
+  // Sync state if props update from server
   useEffect(() => {
-    const token = getStoredAccessToken();
-    if (!token) return;
-
-    let isMounted = true;
-    likesEndpoints
-      .getLikeStatus(postId)
-      .then((res) => {
-        if (isMounted && res.data) {
-          setLiked(Boolean(res.data.liked));
-          if (typeof res.data.likes_count === "number") {
-            setLikesCount(res.data.likes_count);
-          }
-        }
-      })
-      .catch(() => {
-        // Silently fall back to initial props
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [postId]);
+    setLiked(initialLiked);
+    setLikesCount(initialLikesCount);
+  }, [initialLiked, initialLikesCount]);
 
   const handleToggleLike = async () => {
     const token = getStoredAccessToken();
     if (!token) {
+      const currentPath =
+        typeof window !== "undefined" ? window.location.pathname : "";
+      const loginUrl = currentPath
+        ? `/login?redirect=${encodeURIComponent(currentPath)}`
+        : "/login";
       toast.error("Please sign in to like this post", {
         action: {
           label: "Sign in",
-          onClick: () => router.push("/login"),
+          onClick: () => router.push(loginUrl),
         },
       });
       return;
@@ -81,15 +69,13 @@ export function LikeButton({
           setLikesCount(res.data.likes_count);
         }
       }
-    } catch (err: unknown) {
-      // Revert optimistic update on failure
+      // Invalidate queries for likes
+      queryClient.invalidateQueries({ queryKey: ["likes", postId] });
+    } catch {
+      // Revert optimistic update on failure with standard copy from better-writing
       setLiked(previousLiked);
       setLikesCount(previousCount);
-      let msg = "Failed to update like status";
-      if (axios.isAxiosError(err)) {
-        msg = err.response?.data?.message || err.message || msg;
-      }
-      toast.error(msg);
+      toast.error("Couldn't save like — try again.");
     } finally {
       setLoading(false);
     }
@@ -102,7 +88,7 @@ export function LikeButton({
       onClick={handleToggleLike}
       disabled={loading}
       aria-pressed={liked}
-      aria-label={liked ? `Unlike article, current likes ${likesCount}` : `Like article, current likes ${likesCount}`}
+      aria-label={liked ? "Unlike post" : "Like post"}
       className={`h-8 gap-2 rounded-full border px-3 text-xs font-medium transition-all duration-200 ${
         liked
           ? "border-accent-warm/40 bg-accent-warm/10 text-accent-warm hover:bg-accent-warm/15 hover:text-accent-warm"
@@ -114,7 +100,7 @@ export function LikeButton({
           liked ? "scale-110 fill-accent-warm text-accent-warm" : ""
         }`}
       />
-      <span>{likesCount}</span>
+      <span className="tabular-nums font-medium">{likesCount}</span>
       <span className="sr-only">likes</span>
     </Button>
   );
