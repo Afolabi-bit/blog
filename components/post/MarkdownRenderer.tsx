@@ -1,10 +1,75 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
+import { Check, Copy } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface MarkdownRendererProps {
   content: string;
+}
+
+function CodeBlock({ children, className }: { children: React.ReactNode; className?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  // Extract raw text from children for copying
+  const extractText = (node: React.ReactNode): string => {
+    if (typeof node === "string") return node;
+    if (typeof node === "number") return String(node);
+    if (Array.isArray(node)) return node.map(extractText).join("");
+    if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+      return extractText(node.props.children);
+    }
+    return "";
+  };
+
+  const handleCopy = async () => {
+    try {
+      const text = extractText(children);
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback
+    }
+  };
+
+  const match = /language-(\w+)/.exec(className || "");
+  const lang = match ? match[1] : "";
+
+  return (
+    <div className="relative group/code my-6 rounded-xl border border-border bg-card overflow-hidden shadow-2xs">
+      <div className="flex items-center justify-between border-b border-border/50 bg-muted/40 px-4 py-1.5 text-xs text-muted-foreground font-mono">
+        <span>{lang || "code"}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleCopy}
+          aria-label={copied ? "Code copied to clipboard" : "Copy code"}
+          aria-pressed={copied}
+          className="h-7 px-2 text-xs gap-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+        >
+          {copied ? (
+            <>
+              <Check className="size-3.5 text-status-success" />
+              <span>Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy className="size-3.5" />
+              <span>Copy</span>
+            </>
+          )}
+        </Button>
+      </div>
+      <pre className="p-4 overflow-x-auto font-mono text-sm leading-relaxed text-card-foreground">
+        <code className={className}>{children}</code>
+      </pre>
+    </div>
+  );
 }
 
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
@@ -14,10 +79,11 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize]}
         components={{
+          // Demote h1 in content to h2 per M1.2 & better-accessibility (single <h1> per page)
           h1: ({ children }) => (
-            <h1 className="mt-10 mb-4 font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            <h2 className="mt-10 mb-4 border-b border-border/50 pb-2 font-serif text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               {children}
-            </h1>
+            </h2>
           ),
           h2: ({ children }) => (
             <h2 className="mt-9 mb-4 border-b border-border/50 pb-2 font-serif text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
@@ -66,14 +132,14 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
               {children}
             </a>
           ),
+          pre: ({ children }) => {
+            // When pre contains code block, let code renderer handle it or render directly
+            return <>{children}</>;
+          },
           code: ({ className, children }) => {
-            const isBlock = className?.includes("language-");
+            const isBlock = className?.includes("language-") || (typeof children === "string" && children.includes("\n"));
             if (isBlock) {
-              return (
-                <code className="font-mono text-sm text-foreground">
-                  {children}
-                </code>
-              );
+              return <CodeBlock className={className}>{children}</CodeBlock>;
             }
             return (
               <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.875em] font-medium text-foreground">
@@ -81,11 +147,6 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
               </code>
             );
           },
-          pre: ({ children }) => (
-            <pre className="my-6 overflow-x-auto rounded-xl border border-border bg-card p-4 font-mono text-sm leading-relaxed text-card-foreground shadow-xs">
-              {children}
-            </pre>
-          ),
           table: ({ children }) => (
             <div className="my-6 overflow-x-auto">
               <table className="w-full border-collapse border border-border text-left text-sm">
