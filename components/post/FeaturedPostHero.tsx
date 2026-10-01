@@ -68,9 +68,9 @@ export function FeaturedPostHero({ post }: FeaturedPostHeroProps) {
               href={`/post/${post.slug}`}
               className="focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-xs"
             >
-              <h1 className="font-serif text-2xl font-bold leading-tight tracking-tight text-card-foreground transition-colors group-hover:text-accent-solid sm:text-3xl">
+              <h2 className="font-serif text-2xl font-bold leading-tight tracking-tight text-card-foreground transition-colors group-hover:text-accent-solid sm:text-3xl">
                 {post.title}
-              </h1>
+              </h2>
             </Link>
 
             <p className="text-sm leading-relaxed text-muted-foreground sm:text-base line-clamp-3 lg:line-clamp-4">
@@ -96,21 +96,29 @@ export function FeaturedPostHero({ post }: FeaturedPostHeroProps) {
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <time dateTime={post.created_at}>{formattedDate}</time>
                     <span>•</span>
-                    <span>{readingTime}</span>
+                    <span className="tabular-nums">{readingTime}</span>
                   </div>
                 </div>
               </Link>
 
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <div
-                  className={`flex items-center gap-1 ${
-                    post.liked_by_me ? "text-red-500 font-medium" : ""
+                  className={`flex items-center gap-1 tabular-nums ${
+                    post.liked_by_me ? "text-accent-warm font-medium" : ""
                   }`}
+                  aria-label={`${post.likes_count} likes`}
                 >
-                  <Heart className={`size-3.5 ${post.liked_by_me ? "fill-red-500" : ""}`} />
+                  <Heart
+                    className={`size-3.5 ${
+                      post.liked_by_me ? "fill-accent-warm text-accent-warm" : ""
+                    }`}
+                  />
                   <span>{post.likes_count}</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div
+                  className="flex items-center gap-1 tabular-nums"
+                  aria-label={`${post.comments_count} comments`}
+                >
                   <MessageSquare className="size-3.5" />
                   <span>{post.comments_count}</span>
                 </div>
