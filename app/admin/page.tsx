@@ -647,7 +647,7 @@ export default function AdminPage() {
                         ) : (
                           <Badge
                             variant="secondary"
-                            className="font-mono text-[10px] uppercase tracking-wider py-0 capitalize"
+                            className="font-mono text-[10px] uppercase tracking-wider py-0"
                           >
                             {post.status}
                           </Badge>
