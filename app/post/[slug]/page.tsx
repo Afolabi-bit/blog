@@ -160,7 +160,7 @@ export default async function PostPage({ params }: PostPageProps) {
                 <span>•</span>
                 <span className="flex items-center gap-1">
                   <Clock className="size-3" />
-                  <span>{readingTime}</span>
+                  <span className="tabular-nums">{readingTime}</span>
                 </span>
               </div>
             </div>
