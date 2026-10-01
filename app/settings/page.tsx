@@ -21,8 +21,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { AvatarUploader } from "@/components/settings/AvatarUploader";
-import { Loader2, Lock, Save, User as UserIcon, Shield } from "lucide-react";
+import { API_BASE_URL } from "@/lib/client";
+import Link from "next/link";
+import { ArrowRight, Loader2, Lock, LogOut, Save, User as UserIcon, Shield, Sparkles } from "lucide-react";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -147,9 +160,9 @@ export default function SettingsPage() {
         if (axios.isAxiosError(err)) {
           if (err.response?.status === 401) {
             setSecurityErrors({
-              old_password: "The current password you entered is incorrect.",
+              old_password: "Current password is incorrect",
             });
-            toast.error("Current password incorrect", { id: toastId });
+            toast.error("Current password is incorrect", { id: toastId });
             return;
           }
           msg = err.response?.data?.message || err.message || msg;
@@ -159,7 +172,17 @@ export default function SettingsPage() {
     });
   };
 
-  const isAuthorOrAdmin = user?.role === "author" || user?.role === "admin";
+  const handleSignOutEverywhere = async () => {
+    const toastId = toast.loading("Signing out…");
+    try {
+      await axios.post(`${API_BASE_URL}/api/auth/logout`, {}, { withCredentials: true });
+    } catch {
+      // Continue client logout
+    }
+    toast.success("Signed out of all devices", { id: toastId });
+    await logout();
+    router.push("/login");
+  };
 
   return (
     <div className="py-6 max-w-3xl mx-auto flex flex-col gap-6">
@@ -173,15 +196,28 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="mb-6 grid w-full grid-cols-2">
+        <TabsList
+          className={`mb-6 grid w-full ${
+            user?.role === "reader" ? "grid-cols-3" : "grid-cols-2"
+          }`}
+        >
           <TabsTrigger value="profile" className="gap-2 text-xs font-semibold">
             <UserIcon className="size-3.5" />
-            <span>Profile Information</span>
+            <span>Profile</span>
           </TabsTrigger>
           <TabsTrigger value="security" className="gap-2 text-xs font-semibold">
             <Lock className="size-3.5" />
-            <span>Security & Password</span>
+            <span>Security</span>
           </TabsTrigger>
+          {user?.role === "reader" && (
+            <TabsTrigger
+              value="author-request"
+              className="gap-2 text-xs font-semibold"
+            >
+              <Sparkles className="size-3.5" />
+              <span>Author Request</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Profile Tab */}
@@ -210,34 +246,39 @@ export default function SettingsPage() {
 
             <CardContent>
               <form onSubmit={handleUpdateProfile} className="flex flex-col gap-5">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="first_name">First Name</Label>
-                    <Input
-                      id="first_name"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      disabled={profilePending}
-                      className="bg-background"
-                    />
-                    {profileErrors.first_name && (
-                      <p className="text-xs text-destructive">{profileErrors.first_name}</p>
-                    )}
-                  </div>
+                <div className="flex flex-col gap-1">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="first_name">First Name</Label>
+                      <Input
+                        id="first_name"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        disabled={profilePending}
+                        className="bg-background"
+                      />
+                      {profileErrors.first_name && (
+                        <p className="text-xs text-destructive">{profileErrors.first_name}</p>
+                      )}
+                    </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="last_name">Last Name</Label>
-                    <Input
-                      id="last_name"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      disabled={profilePending}
-                      className="bg-background"
-                    />
-                    {profileErrors.last_name && (
-                      <p className="text-xs text-destructive">{profileErrors.last_name}</p>
-                    )}
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="last_name">Last Name</Label>
+                      <Input
+                        id="last_name"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        disabled={profilePending}
+                        className="bg-background"
+                      />
+                      {profileErrors.last_name && (
+                        <p className="text-xs text-destructive">{profileErrors.last_name}</p>
+                      )}
+                    </div>
                   </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Please confirm your first and last name.
+                  </p>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
@@ -337,7 +378,7 @@ export default function SettingsPage() {
                     id="new_password"
                     type="password"
                     autoComplete="new-password"
-                    placeholder="At least 6 characters"
+                    placeholder="Minimum 8 characters"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
@@ -381,7 +422,80 @@ export default function SettingsPage() {
               </form>
             </CardContent>
           </Card>
+
+          {/* Active Sessions & Sign Out Everywhere */}
+          <Card className="mt-6 border-border bg-card">
+            <CardHeader>
+              <CardTitle className="font-serif text-lg font-bold text-foreground">
+                Active Sessions
+              </CardTitle>
+              <CardDescription>
+                Sign out of all web browsers and devices currently logged into your account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <LogOut className="size-4" />
+                    <span>Sign out of all devices</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Sign out of all devices?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      You&apos;ll need to sign in again everywhere.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleSignOutEverywhere}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Sign out everywhere
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
         </TabsContent>
+
+        {/* Author Request Tab (for readers) */}
+        {user?.role === "reader" && (
+          <TabsContent value="author-request">
+            <Card className="border-border bg-card">
+              <CardHeader>
+                <CardTitle className="font-serif text-xl font-bold flex items-center gap-2">
+                  <Sparkles className="size-5 text-accent-warm" />
+                  <span>Author Privileges</span>
+                </CardTitle>
+                <CardDescription>
+                  Apply to become an author on Bloggr to write and publish your own articles.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Readers can apply for author privileges. Once approved, you gain access to the Author Studio, rich text publishing tools, and analytics.
+                </p>
+                <div>
+                  <Button asChild className="gap-2 bg-accent-solid text-white hover:bg-accent-solid/90">
+                    <Link href="/settings/author-request">
+                      <span>Go to Author Application</span>
+                      <ArrowRight className="size-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
