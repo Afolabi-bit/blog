@@ -57,7 +57,7 @@ export function ArticleActionBar({
         aria-label={`Jump to comments, ${commentsCount} comments`}
       >
         <MessageSquare className="size-3.5" />
-        <span>{commentsCount}</span>
+        <span className="tabular-nums">{commentsCount}</span>
         <span className="sr-only">comments</span>
       </Button>
 
