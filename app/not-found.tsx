@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { BookOpen, ArrowLeft, Home } from "lucide-react";
+import { BookOpen, Home } from "lucide-react";
 
 export default function NotFound() {
   return (
@@ -10,30 +10,22 @@ export default function NotFound() {
       </div>
 
       <span className="font-mono text-xs font-semibold uppercase tracking-widest text-accent-solid">
-        404 — Not Found
+        404
       </span>
 
-      <h1 className="mt-2 font-serif text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-        Page or article not found
+      <h1 className="mt-2 font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        Page not found.
       </h1>
 
       <p className="mt-2 max-w-md text-sm text-muted-foreground leading-relaxed">
-        The article, page, or resource you are looking for may have been removed,
-        renamed, or is temporarily unavailable.
+        The page you are looking for doesn&apos;t exist, was moved, or is temporarily unavailable.
       </p>
 
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-        <Button asChild variant="outline" className="gap-2">
-          <Link href="/">
-            <ArrowLeft className="size-4" />
-            <span>Back to articles</span>
-          </Link>
-        </Button>
-
         <Button asChild className="gap-2 bg-accent-solid text-white hover:bg-accent-solid/90">
           <Link href="/">
             <Home className="size-4" />
-            <span>Home</span>
+            <span>Go home</span>
           </Link>
         </Button>
       </div>
