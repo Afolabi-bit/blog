@@ -8,6 +8,7 @@ import { ThemeProvider, themeScript } from "@/lib/theme";
 import { QueryProvider } from "@/lib/query-client";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ColdStartNotice } from "@/components/general/ColdStartNotice";
+import { OfflineBanner } from "@/components/general/OfflineBanner";
 import { getServerSession } from "@/lib/auth";
 import { Toaster } from "sonner";
 
@@ -62,6 +63,7 @@ export default async function RootLayout({
         >
           Skip to main content
         </a>
+        <OfflineBanner />
         <QueryProvider>
           <ThemeProvider>
             <TooltipProvider delayDuration={200}>
