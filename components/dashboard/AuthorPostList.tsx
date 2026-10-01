@@ -7,6 +7,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import { postsEndpoints } from "@/lib/endpoints";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardFooter, CardHeader } from "@/components/ui/card";
 import {
@@ -29,6 +30,7 @@ import {
   MessageSquare,
   PenSquare,
   Plus,
+  Search,
   Trash2,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
@@ -41,6 +43,7 @@ interface AuthorPostListProps {
 export function AuthorPostList({ initialPosts, initialStats }: AuthorPostListProps) {
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -54,12 +57,20 @@ export function AuthorPostList({ initialPosts, initialStats }: AuthorPostListPro
   const publishedPosts = posts.filter((p) => p.status === "published");
   const draftPosts = posts.filter((p) => p.status === "draft");
 
-  const filteredPosts =
+  const statusFiltered =
     filter === "all"
       ? posts
       : filter === "published"
         ? publishedPosts
         : draftPosts;
+
+  const filteredPosts = searchQuery.trim()
+    ? statusFiltered.filter(
+        (p) =>
+          p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.tags?.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())),
+      )
+    : statusFiltered;
 
   const confirmDelete = async () => {
     if (!postToDelete) return;
@@ -136,45 +147,58 @@ export function AuthorPostList({ initialPosts, initialStats }: AuthorPostListPro
         </Card>
       </div>
 
-      {/* Filter Tabs & New Post CTA */}
+      {/* Filter Tabs, Search & New Post CTA */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setFilter("all")}
-            className={`h-8 text-xs font-medium ${
-              filter === "all"
-                ? "bg-muted text-foreground shadow-xs font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            All ({posts.length})
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setFilter("published")}
-            className={`h-8 text-xs font-medium ${
-              filter === "published"
-                ? "bg-muted text-foreground shadow-xs font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Published ({publishedPosts.length})
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setFilter("draft")}
-            className={`h-8 text-xs font-medium ${
-              filter === "draft"
-                ? "bg-muted text-foreground shadow-xs font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Drafts ({draftPosts.length})
-          </Button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setFilter("all")}
+              className={`h-8 text-xs font-medium ${
+                filter === "all"
+                  ? "bg-muted text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All ({posts.length})
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setFilter("published")}
+              className={`h-8 text-xs font-medium ${
+                filter === "published"
+                  ? "bg-muted text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Published ({publishedPosts.length})
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setFilter("draft")}
+              className={`h-8 text-xs font-medium ${
+                filter === "draft"
+                  ? "bg-muted text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Drafts ({draftPosts.length})
+            </Button>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by title or tag…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8 pl-8 pr-2.5 text-xs w-48 bg-card"
+            />
+          </div>
         </div>
 
         <Button asChild size="sm" className="gap-1.5 bg-accent-solid text-white hover:bg-accent-solid/90">
