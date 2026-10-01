@@ -380,7 +380,7 @@ export function PostEditor({ initialPost }: PostEditorProps) {
             )}
             {autosaveStatus === "saved" && (
               <>
-                <Check className="size-3 text-status-success text-green-600" />
+                <Check className="size-3 text-status-success" />
                 <span>
                   Saved
                   {lastSavedAt
@@ -391,7 +391,7 @@ export function PostEditor({ initialPost }: PostEditorProps) {
             )}
             {autosaveStatus === "unsaved" && (
               <>
-                <span className="size-2 rounded-full bg-status-warning bg-amber-500 inline-block" />
+                <span className="size-2 rounded-full bg-status-warning inline-block" />
                 <span>Unsaved changes</span>
               </>
             )}
