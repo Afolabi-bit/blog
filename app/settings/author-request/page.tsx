@@ -89,15 +89,10 @@ export default function AuthorRequestPage() {
   const isCooldownActive =
     request?.status === "rejected" && now < cooldownEndsAt;
 
-  const remainingMs = Math.max(0, cooldownEndsAt - now);
-  const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
-  const remainingHours = Math.floor(
-    (remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000),
-  );
 
   const handleAddLink = () => {
-    if (sampleLinks.length >= 5) {
-      toast.info("Maximum 5 portfolio links allowed");
+    if (sampleLinks.length >= 3) {
+      toast.info("Maximum 3 portfolio links allowed");
       return;
     }
     setSampleLinks([...sampleLinks, ""]);
@@ -180,11 +175,11 @@ export default function AuthorRequestPage() {
             <CheckCircle2 className="size-6" />
           </div>
           <h2 className="font-serif text-2xl font-bold text-foreground">
-            You are an Author!
+            You are an approved author.
           </h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-            You already have active author publishing privileges on Bloggr. You
-            can create, draft, and publish articles directly from your studio.
+            You have active publishing privileges on Bloggr. You can create,
+            draft, and publish articles directly from your studio.
           </p>
           <div className="mt-6">
             <Button
@@ -249,13 +244,11 @@ export default function AuthorRequestPage() {
             <Alert className="border-status-warning/30 bg-status-warning/5">
               <Clock className="size-4 text-status-warning" />
               <AlertTitle className="text-foreground font-semibold">
-                Application Under Editorial Review
+                Application under review.
               </AlertTitle>
               <AlertDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Thank you for applying to become an author on Bloggr! Our
-                editorial team is currently reviewing your profile and portfolio
-                samples. We typically review new applications within 24–48
-                hours.
+                Submitted on {formatDate(request.created_at)}. We&apos;ll notify
+                you by email when a decision is made.
               </AlertDescription>
             </Alert>
 
@@ -371,27 +364,31 @@ export default function AuthorRequestPage() {
               </AlertDescription>
             </Alert>
 
-            {/* B13 Cooldown Notice Banner */}
-            <div className="rounded-xl border border-status-warning/40 bg-status-warning/5 p-4 flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-status-warning font-semibold text-sm">
-                <Clock className="size-4" />
-                <span>7-Day Cooldown in Progress</span>
+              {/* Cooldown Notice Banner */}
+              <div className="rounded-xl border border-status-warning/40 bg-status-warning/5 p-4 flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-status-warning font-semibold text-sm">
+                  <Clock className="size-4" />
+                  <span>Cooldown in progress</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Your application was reviewed on{" "}
+                  <span className="font-medium text-foreground">
+                    {formatDate(request.updated_at || request.created_at)}
+                  </span>
+                  . You can reapply on{" "}
+                  <span className="font-semibold text-foreground">
+                    {new Date(cooldownEndsAt).toLocaleDateString([], {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                  .
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Your application was reviewed on{" "}
-                <span className="font-medium text-foreground">
-                  {formatDate(request.updated_at || request.created_at)}
-                </span>
-                . In accordance with editorial guidelines, you may reapply in{" "}
-                <span className="font-mono font-bold text-foreground">
-                  {remainingDays}d {remainingHours}h
-                </span>{" "}
-                with updated portfolio links and background.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
 
       {/* Case 4: No previous application OR rejected with cooldown elapsed -> Show Application Form */}
       {(!request || (request.status === "rejected" && !isCooldownActive)) && (
@@ -406,8 +403,7 @@ export default function AuthorRequestPage() {
             <CardDescription>
               {request ? (
                 <span className="text-status-success font-medium">
-                  Your 7-day cooldown has passed. You are now eligible to
-                  reapply with updated writing samples!
+                  Your 7-day cooldown has passed. You are now eligible to reapply.
                 </span>
               ) : (
                 "Tell us about your background, expertise, and what topics you plan to write about."
@@ -431,6 +427,21 @@ export default function AuthorRequestPage() {
             )}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              {/* Error summary with role="alert" */}
+              {Object.keys(fieldErrors).length > 0 && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive"
+                >
+                  <p className="font-semibold">Please fix the following errors:</p>
+                  <ul className="mt-1 list-disc pl-4 space-y-0.5">
+                    {Object.entries(fieldErrors).map(([field, msg]) => (
+                      <li key={field}>{msg}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {formError && (
                 <Alert variant="destructive">
                   <AlertCircle className="size-4" />
@@ -485,15 +496,17 @@ export default function AuthorRequestPage() {
                 )}
               </div>
 
-              <div className="flex flex-col gap-2">
+              <fieldset className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <Label>Sample Writing / Portfolio Links</Label>
+                  <legend className="text-sm font-semibold">
+                    Sample Writing / Portfolio Links
+                  </legend>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     onClick={handleAddLink}
-                    disabled={isPending || sampleLinks.length >= 5}
+                    disabled={isPending || sampleLinks.length >= 3}
                     className="h-7 gap-1 text-xs text-accent-solid hover:text-accent-solid"
                   >
                     <Plus className="size-3.5" />
@@ -506,7 +519,8 @@ export default function AuthorRequestPage() {
                     <div key={idx} className="flex items-center gap-2">
                       <Input
                         type="url"
-                        placeholder="https://github.com/username or blog article URL…"
+                        aria-label={`Sample link ${idx + 1}`}
+                        placeholder="https://example.com/my-article"
                         value={link}
                         onChange={(e) => handleLinkChange(idx, e.target.value)}
                         disabled={isPending}
@@ -519,7 +533,7 @@ export default function AuthorRequestPage() {
                           size="icon"
                           onClick={() => handleRemoveLink(idx)}
                           className="size-8 text-muted-foreground hover:text-destructive"
-                          aria-label="Remove link"
+                          aria-label={`Remove sample link ${idx + 1}`}
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
@@ -532,7 +546,7 @@ export default function AuthorRequestPage() {
                     {fieldErrors.sample_links}
                   </p>
                 )}
-              </div>
+              </fieldset>
 
               <Button
                 type="submit"
@@ -544,9 +558,7 @@ export default function AuthorRequestPage() {
                 ) : (
                   <Send className="size-4" />
                 )}
-                <span>
-                  {request ? "Submit Reapplication" : "Submit Application"}
-                </span>
+                <span>Submit application</span>
               </Button>
             </form>
           </CardContent>
