@@ -27,13 +27,13 @@ export function CoverUploader({
   const handleFileUpload = async (file: File) => {
     const validTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     if (!validTypes.includes(file.type)) {
-      toast.error("Invalid format. Please upload JPG, PNG, WEBP, or GIF.");
+      toast.error("Unsupported format. Use JPEG, PNG, WebP, or GIF.");
       return;
     }
 
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      toast.error("Image file is too large. Maximum size is 5MB.");
+      toast.error("Image too large (max 5 MB)");
       return;
     }
 
@@ -123,6 +123,9 @@ export function CoverUploader({
         </div>
       ) : (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Upload cover image. Drag and drop file or click to browse"
           onDragOver={(e) => {
             e.preventDefault();
             setIsDragOver(true);
@@ -132,7 +135,13 @@ export function CoverUploader({
           onClick={() =>
             !disabled && !isUploading && fileInputRef.current?.click()
           }
-          className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors cursor-pointer ${
+          onKeyDown={(e) => {
+            if ((e.key === "Enter" || e.key === " ") && !disabled && !isUploading) {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+          className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring ${
             isDragOver
               ? "border-accent-solid bg-accent-solid/5"
               : "border-border bg-card/50 hover:bg-card hover:border-accent-solid/40"
