@@ -76,18 +76,24 @@ export default function AuthorRequestPage() {
   }, []);
 
   // Cooldown calculation for rejected applications (B13: 7 days)
-  const rejectionTimestamp = request?.status === "rejected"
-    ? new Date(request.updated_at || request.created_at).getTime()
-    : null;
+  const rejectionTimestamp =
+    request?.status === "rejected"
+      ? new Date(request.updated_at || request.created_at).getTime()
+      : null;
 
   const cooldownPeriodMs = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-  const cooldownEndsAt = rejectionTimestamp ? rejectionTimestamp + cooldownPeriodMs : 0;
+  const cooldownEndsAt = rejectionTimestamp
+    ? rejectionTimestamp + cooldownPeriodMs
+    : 0;
   const now = Date.now();
-  const isCooldownActive = request?.status === "rejected" && now < cooldownEndsAt;
+  const isCooldownActive =
+    request?.status === "rejected" && now < cooldownEndsAt;
 
   const remainingMs = Math.max(0, cooldownEndsAt - now);
   const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
-  const remainingHours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+  const remainingHours = Math.floor(
+    (remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000),
+  );
 
   const handleAddLink = () => {
     if (sampleLinks.length >= 5) {
@@ -110,7 +116,9 @@ export default function AuthorRequestPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isCooldownActive) {
-      toast.error("Please wait for the 7-day cooldown to finish before reapplying.");
+      toast.error(
+        "Please wait for the 7-day cooldown to finish before reapplying.",
+      );
       return;
     }
 
@@ -179,7 +187,10 @@ export default function AuthorRequestPage() {
             can create, draft, and publish articles directly from your studio.
           </p>
           <div className="mt-6">
-            <Button asChild className="gap-2 bg-accent-solid text-white hover:bg-accent-solid/90">
+            <Button
+              asChild
+              className="gap-2 bg-accent-solid text-white hover:bg-accent-solid/90"
+            >
               <Link href="/dashboard">
                 <PenSquare className="size-4" />
                 <span>Go to Author Studio</span>
@@ -207,7 +218,8 @@ export default function AuthorRequestPage() {
           Become an Author
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Apply for author privileges to write, draft, and publish articles on Bloggr.
+          Apply for author privileges to write, draft, and publish articles on
+          Bloggr.
         </p>
       </div>
 
@@ -240,13 +252,18 @@ export default function AuthorRequestPage() {
                 Application Under Editorial Review
               </AlertTitle>
               <AlertDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Thank you for applying to become an author on Bloggr! Our editorial team is currently reviewing your profile and portfolio samples. We typically review new applications within 24–48 hours.
+                Thank you for applying to become an author on Bloggr! Our
+                editorial team is currently reviewing your profile and portfolio
+                samples. We typically review new applications within 24–48
+                hours.
               </AlertDescription>
             </Alert>
 
             <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 p-4 text-xs">
               <div>
-                <span className="font-semibold text-foreground">Submitted on: </span>
+                <span className="font-semibold text-foreground">
+                  Submitted on:{" "}
+                </span>
                 <span className="text-muted-foreground">
                   {formatDate(request.created_at)}
                 </span>
@@ -260,7 +277,9 @@ export default function AuthorRequestPage() {
               </div>
 
               <div>
-                <span className="font-semibold text-foreground">Motivation: </span>
+                <span className="font-semibold text-foreground">
+                  Motivation:{" "}
+                </span>
                 <p className="mt-1 text-muted-foreground leading-relaxed">
                   {request.motivation}
                 </p>
@@ -268,7 +287,9 @@ export default function AuthorRequestPage() {
 
               {request.sample_links && request.sample_links.length > 0 && (
                 <div>
-                  <span className="font-semibold text-foreground">Portfolio Links:</span>
+                  <span className="font-semibold text-foreground">
+                    Portfolio Links:
+                  </span>
                   <ul className="mt-1 flex flex-col gap-1 pl-4 list-disc">
                     {request.sample_links.map((link) => (
                       <li key={link}>
@@ -276,7 +297,7 @@ export default function AuthorRequestPage() {
                           href={link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-accent-solid hover:underline flex items-center gap-1 inline-flex"
+                          className="text-accent-solid hover:underline items-center gap-1 inline-flex"
                         >
                           <span>{link}</span>
                           <ExternalLink className="size-3" />
@@ -300,11 +321,15 @@ export default function AuthorRequestPage() {
               Application Approved!
             </AlertTitle>
             <AlertDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Congratulations! Your author application has been approved. You can now access the Author Studio to write and publish articles.
+              Congratulations! Your author application has been approved. You
+              can now access the Author Studio to write and publish articles.
             </AlertDescription>
           </Alert>
 
-          <Button asChild className="w-fit gap-2 bg-accent-solid text-white hover:bg-accent-solid/90">
+          <Button
+            asChild
+            className="w-fit gap-2 bg-accent-solid text-white hover:bg-accent-solid/90"
+          >
             <Link href="/dashboard">
               <span>Enter Author Studio</span>
               <ArrowRight className="size-4" />
@@ -374,12 +399,15 @@ export default function AuthorRequestPage() {
           <CardHeader>
             <CardTitle className="font-serif text-xl font-bold flex items-center gap-2">
               <Sparkles className="size-5 text-accent-warm" />
-              <span>{request ? "Reapply for Author Status" : "Author Application"}</span>
+              <span>
+                {request ? "Reapply for Author Status" : "Author Application"}
+              </span>
             </CardTitle>
             <CardDescription>
               {request ? (
                 <span className="text-status-success font-medium">
-                  Your 7-day cooldown has passed. You are now eligible to reapply with updated writing samples!
+                  Your 7-day cooldown has passed. You are now eligible to
+                  reapply with updated writing samples!
                 </span>
               ) : (
                 "Tell us about your background, expertise, and what topics you plan to write about."
@@ -391,9 +419,13 @@ export default function AuthorRequestPage() {
             {request && request.status === "rejected" && (
               <Alert className="mb-5 border-border bg-muted/30">
                 <RotateCcw className="size-4 text-accent-solid" />
-                <AlertTitle className="text-xs font-semibold">Previous Feedback</AlertTitle>
+                <AlertTitle className="text-xs font-semibold">
+                  Previous Feedback
+                </AlertTitle>
                 <AlertDescription className="text-xs text-muted-foreground mt-0.5">
-                  {request.review_notes || request.admin_note || "No specific feedback provided."}
+                  {request.review_notes ||
+                    request.admin_note ||
+                    "No specific feedback provided."}
                 </AlertDescription>
               </Alert>
             )}
@@ -447,7 +479,9 @@ export default function AuthorRequestPage() {
                   <span>{motivation.length}/2000</span>
                 </div>
                 {fieldErrors.motivation && (
-                  <p className="text-xs text-destructive">{fieldErrors.motivation}</p>
+                  <p className="text-xs text-destructive">
+                    {fieldErrors.motivation}
+                  </p>
                 )}
               </div>
 
@@ -494,7 +528,9 @@ export default function AuthorRequestPage() {
                   ))}
                 </div>
                 {fieldErrors.sample_links && (
-                  <p className="text-xs text-destructive">{fieldErrors.sample_links}</p>
+                  <p className="text-xs text-destructive">
+                    {fieldErrors.sample_links}
+                  </p>
                 )}
               </div>
 
@@ -508,7 +544,9 @@ export default function AuthorRequestPage() {
                 ) : (
                   <Send className="size-4" />
                 )}
-                <span>{request ? "Submit Reapplication" : "Submit Application"}</span>
+                <span>
+                  {request ? "Submit Reapplication" : "Submit Application"}
+                </span>
               </Button>
             </form>
           </CardContent>
