@@ -28,9 +28,11 @@ import {
   Clock,
   ExternalLink,
   FileCheck,
+  Hourglass,
   Loader2,
   PenSquare,
   Plus,
+  RotateCcw,
   Send,
   Sparkles,
   Trash2,
@@ -73,6 +75,20 @@ export default function AuthorRequestPage() {
     fetchRequestStatus();
   }, []);
 
+  // Cooldown calculation for rejected applications (B13: 7 days)
+  const rejectionTimestamp = request?.status === "rejected"
+    ? new Date(request.updated_at || request.created_at).getTime()
+    : null;
+
+  const cooldownPeriodMs = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+  const cooldownEndsAt = rejectionTimestamp ? rejectionTimestamp + cooldownPeriodMs : 0;
+  const now = Date.now();
+  const isCooldownActive = request?.status === "rejected" && now < cooldownEndsAt;
+
+  const remainingMs = Math.max(0, cooldownEndsAt - now);
+  const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
+  const remainingHours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+
   const handleAddLink = () => {
     if (sampleLinks.length >= 5) {
       toast.info("Maximum 5 portfolio links allowed");
@@ -93,6 +109,11 @@ export default function AuthorRequestPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCooldownActive) {
+      toast.error("Please wait for the 7-day cooldown to finish before reapplying.");
+      return;
+    }
+
     setFormError(null);
     setFieldErrors({});
 
@@ -190,85 +211,38 @@ export default function AuthorRequestPage() {
         </p>
       </div>
 
-      {/* Existing Application Status Card */}
-      {request ? (
+      {/* Case 1: Pending Application */}
+      {request && request.status === "pending" && (
         <Card className="border-border bg-card overflow-hidden">
           <CardHeader className="border-b border-border/50 bg-muted/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileCheck className="size-5 text-accent-solid" />
                 <CardTitle className="font-serif text-lg font-bold">
-                  Application Status
+                  Application Under Review
                 </CardTitle>
               </div>
 
               <Badge
                 variant="outline"
-                className={`font-mono text-xs uppercase tracking-wider py-1 px-2.5 font-semibold ${
-                  request.status === "pending"
-                    ? "border-status-warning/40 bg-status-warning/10 text-status-warning"
-                    : request.status === "approved"
-                      ? "border-status-success/40 bg-status-success/10 text-status-success"
-                      : "border-status-danger/40 bg-status-danger/10 text-status-danger"
-                }`}
+                className="font-mono text-xs uppercase tracking-wider py-1 px-2.5 font-semibold border-status-warning/40 bg-status-warning/10 text-status-warning flex items-center gap-1"
               >
-                {request.status === "pending" && (
-                  <span className="flex items-center gap-1">
-                    <Clock className="size-3" />
-                    <span>Under Review</span>
-                  </span>
-                )}
-                {request.status === "approved" && (
-                  <span className="flex items-center gap-1">
-                    <CheckCircle2 className="size-3" />
-                    <span>Approved</span>
-                  </span>
-                )}
-                {request.status === "rejected" && (
-                  <span className="flex items-center gap-1">
-                    <XCircle className="size-3" />
-                    <span>Declined</span>
-                  </span>
-                )}
+                <Clock className="size-3" />
+                <span>Under Review</span>
               </Badge>
             </div>
           </CardHeader>
 
           <CardContent className="p-6 flex flex-col gap-5">
-            {request.status === "pending" && (
-              <Alert className="border-status-warning/30 bg-status-warning/5">
-                <Clock className="size-4 text-status-warning" />
-                <AlertTitle className="text-foreground font-semibold">
-                  Application Under Review
-                </AlertTitle>
-                <AlertDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Thank you for applying to become an author on Bloggr! Our editorial team is currently reviewing your profile and portfolio samples. We typically respond within 24-48 hours.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {request.status === "approved" && (
-              <Alert className="border-status-success/30 bg-status-success/5">
-                <CheckCircle2 className="size-4 text-status-success" />
-                <AlertTitle className="text-status-success font-semibold">
-                  Application Approved!
-                </AlertTitle>
-                <AlertDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Congratulations! Your application has been approved. You now have access to the Author Studio to create and publish articles.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {request.status === "rejected" && (
-              <Alert variant="destructive">
-                <AlertCircle className="size-4" />
-                <AlertTitle>Application Declined</AlertTitle>
-                <AlertDescription className="text-xs mt-1 leading-relaxed">
-                  {request.review_notes ||
-                    "Thank you for your interest. Unfortunately, your application was not approved at this time. You may re-apply with updated portfolio work."}
-                </AlertDescription>
-              </Alert>
-            )}
+            <Alert className="border-status-warning/30 bg-status-warning/5">
+              <Clock className="size-4 text-status-warning" />
+              <AlertTitle className="text-foreground font-semibold">
+                Application Under Editorial Review
+              </AlertTitle>
+              <AlertDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Thank you for applying to become an author on Bloggr! Our editorial team is currently reviewing your profile and portfolio samples. We typically review new applications within 24–48 hours.
+              </AlertDescription>
+            </Alert>
 
             <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 p-4 text-xs">
               <div>
@@ -313,31 +287,117 @@ export default function AuthorRequestPage() {
                 </div>
               )}
             </div>
-
-            {request.status === "approved" && (
-              <Button asChild className="w-fit gap-2 bg-accent-solid text-white hover:bg-accent-solid/90">
-                <Link href="/dashboard">
-                  <span>Enter Author Studio</span>
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            )}
           </CardContent>
         </Card>
-      ) : (
-        /* Application Form */
+      )}
+
+      {/* Case 2: Approved Application */}
+      {request && request.status === "approved" && (
+        <Card className="border-border bg-card p-6 flex flex-col gap-4">
+          <Alert className="border-status-success/30 bg-status-success/5">
+            <CheckCircle2 className="size-4 text-status-success" />
+            <AlertTitle className="text-status-success font-semibold">
+              Application Approved!
+            </AlertTitle>
+            <AlertDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Congratulations! Your author application has been approved. You can now access the Author Studio to write and publish articles.
+            </AlertDescription>
+          </Alert>
+
+          <Button asChild className="w-fit gap-2 bg-accent-solid text-white hover:bg-accent-solid/90">
+            <Link href="/dashboard">
+              <span>Enter Author Studio</span>
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        </Card>
+      )}
+
+      {/* Case 3: Rejected Application with 7-day cooldown (B13) */}
+      {request && request.status === "rejected" && isCooldownActive && (
+        <Card className="border-border bg-card overflow-hidden">
+          <CardHeader className="border-b border-border/50 bg-muted/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Hourglass className="size-5 text-status-warning" />
+                <CardTitle className="font-serif text-lg font-bold">
+                  Application Cooldown
+                </CardTitle>
+              </div>
+
+              <Badge
+                variant="outline"
+                className="font-mono text-xs uppercase tracking-wider py-1 px-2.5 font-semibold border-status-danger/40 bg-status-danger/10 text-status-danger flex items-center gap-1"
+              >
+                <XCircle className="size-3" />
+                <span>Declined</span>
+              </Badge>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-6 flex flex-col gap-5">
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" />
+              <AlertTitle>Application Declined</AlertTitle>
+              <AlertDescription className="text-xs mt-1 leading-relaxed">
+                {request.review_notes ||
+                  request.admin_note ||
+                  "Thank you for your interest. Unfortunately, your application was not approved at this time."}
+              </AlertDescription>
+            </Alert>
+
+            {/* B13 Cooldown Notice Banner */}
+            <div className="rounded-xl border border-status-warning/40 bg-status-warning/5 p-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-status-warning font-semibold text-sm">
+                <Clock className="size-4" />
+                <span>7-Day Cooldown in Progress</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Your application was reviewed on{" "}
+                <span className="font-medium text-foreground">
+                  {formatDate(request.updated_at || request.created_at)}
+                </span>
+                . In accordance with editorial guidelines, you may reapply in{" "}
+                <span className="font-mono font-bold text-foreground">
+                  {remainingDays}d {remainingHours}h
+                </span>{" "}
+                with updated portfolio links and background.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Case 4: No previous application OR rejected with cooldown elapsed -> Show Application Form */}
+      {(!request || (request.status === "rejected" && !isCooldownActive)) && (
         <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="font-serif text-xl font-bold flex items-center gap-2">
               <Sparkles className="size-5 text-accent-warm" />
-              <span>Author Application</span>
+              <span>{request ? "Reapply for Author Status" : "Author Application"}</span>
             </CardTitle>
             <CardDescription>
-              Tell us about your background, expertise, and what topics you plan to write about.
+              {request ? (
+                <span className="text-status-success font-medium">
+                  Your 7-day cooldown has passed. You are now eligible to reapply with updated writing samples!
+                </span>
+              ) : (
+                "Tell us about your background, expertise, and what topics you plan to write about."
+              )}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
+            {request && request.status === "rejected" && (
+              <Alert className="mb-5 border-border bg-muted/30">
+                <RotateCcw className="size-4 text-accent-solid" />
+                <AlertTitle className="text-xs font-semibold">Previous Feedback</AlertTitle>
+                <AlertDescription className="text-xs text-muted-foreground mt-0.5">
+                  {request.review_notes || request.admin_note || "No specific feedback provided."}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               {formError && (
                 <Alert variant="destructive">
@@ -448,7 +508,7 @@ export default function AuthorRequestPage() {
                 ) : (
                   <Send className="size-4" />
                 )}
-                <span>Submit Application</span>
+                <span>{request ? "Submit Reapplication" : "Submit Application"}</span>
               </Button>
             </form>
           </CardContent>
