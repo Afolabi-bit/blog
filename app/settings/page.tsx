@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CoverUploader } from "@/components/editor/CoverUploader";
+import { AvatarUploader } from "@/components/settings/AvatarUploader";
 import { Loader2, Lock, Save, User as UserIcon, Shield } from "lucide-react";
 
 export default function SettingsPage() {
@@ -145,6 +145,13 @@ export default function SettingsPage() {
       } catch (err: unknown) {
         let msg = "Failed to change password";
         if (axios.isAxiosError(err)) {
+          if (err.response?.status === 401) {
+            setSecurityErrors({
+              old_password: "The current password you entered is incorrect.",
+            });
+            toast.error("Current password incorrect", { id: toastId });
+            return;
+          }
           msg = err.response?.data?.message || err.message || msg;
         }
         toast.error(msg, { id: toastId });
@@ -265,27 +272,11 @@ export default function SettingsPage() {
 
                 <div className="flex flex-col gap-1.5">
                   <Label>Profile Picture / Avatar</Label>
-                  {isAuthorOrAdmin ? (
-                    <CoverUploader
-                      value={avatarUrl}
-                      onChange={setAvatarUrl}
-                      disabled={profilePending}
-                    />
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      <Input
-                        type="url"
-                        placeholder="https://example.com/avatar.jpg"
-                        value={avatarUrl}
-                        onChange={(e) => setAvatarUrl(e.target.value)}
-                        disabled={profilePending}
-                        className="bg-background text-xs"
-                      />
-                      <p className="text-[11px] text-muted-foreground">
-                        Readers can provide an external image URL. Direct file uploads are available to authors.
-                      </p>
-                    </div>
-                  )}
+                  <AvatarUploader
+                    value={avatarUrl}
+                    onChange={setAvatarUrl}
+                    disabled={profilePending}
+                  />
                   {profileErrors.avatar_url && (
                     <p className="text-xs text-destructive">{profileErrors.avatar_url}</p>
                   )}
