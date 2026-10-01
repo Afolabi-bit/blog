@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
@@ -13,20 +13,23 @@ import { TiptapEditor } from "@/components/editor/TiptapEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Post } from "@/lib/types";
 import {
-  AlertTriangle,
+  AlertCircle,
   ArrowLeft,
+  Check,
   Columns,
+  Copy,
   Eye,
   FileEdit,
   Loader2,
   Plus,
+  RotateCcw,
   Save,
   Send,
+  Trash2,
   X,
 } from "lucide-react";
 
@@ -34,9 +37,18 @@ interface PostEditorProps {
   initialPost?: Post;
 }
 
+interface AutosaveDraft {
+  title: string;
+  content: string;
+  coverImage: string;
+  tags: string[];
+  timestamp: number;
+}
+
 export function PostEditor({ initialPost }: PostEditorProps) {
   const router = useRouter();
   const isEditing = Boolean(initialPost);
+  const draftKey = `bloggr:draft:${initialPost?.id || "new"}`;
 
   const [title, setTitle] = useState(initialPost?.title || "");
   const [content, setContent] = useState(initialPost?.content || "");
@@ -47,12 +59,18 @@ export function PostEditor({ initialPost }: PostEditorProps) {
     initialPost?.status || "draft",
   );
 
-  const [viewMode, setViewMode] = useState<"edit" | "preview" | "split">(
-    "split",
-  );
+  const [viewMode, setViewMode] = useState<"edit" | "preview" | "split">("edit");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [forbiddenError, setForbiddenError] = useState(false);
+  const [copiedMarkdown, setCopiedMarkdown] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Autosave states
+  const [autosaveStatus, setAutosaveStatus] = useState<"saved" | "saving" | "idle">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [hasRestorableDraft, setHasRestorableDraft] = useState(false);
+  const [restorableDraftData, setRestorableDraftData] = useState<AutosaveDraft | null>(null);
 
   // Slug generation helper for display
   const generatedSlug = title
@@ -62,10 +80,91 @@ export function PostEditor({ initialPost }: PostEditorProps) {
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  const hasSlugChanged =
-    isEditing &&
-    initialPost?.status === "published" &&
-    title.trim() !== initialPost.title.trim();
+  // Dirty state calculation
+  const isDirty =
+    title !== (initialPost?.title || "") ||
+    content !== (initialPost?.content || "") ||
+    coverImage !== (initialPost?.cover_image || "") ||
+    tags.join(",") !== (initialPost?.tags || []).join("");
+
+  // Unsaved changes guard (beforeunload)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty && !isPending) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty, isPending]);
+
+  // Check for restorable draft on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) {
+        const data = JSON.parse(raw) as AutosaveDraft;
+        const isDifferent =
+          data.title !== (initialPost?.title || "") ||
+          data.content !== (initialPost?.content || "") ||
+          data.coverImage !== (initialPost?.cover_image || "") ||
+          (data.tags || []).join(",") !== (initialPost?.tags || []).join(",");
+
+        if (isDifferent && (data.title || data.content)) {
+          setHasRestorableDraft(true);
+          setRestorableDraftData(data);
+        }
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [draftKey, initialPost]);
+
+  // Debounced autosave (5s)
+  useEffect(() => {
+    if (!isDirty || (!title.trim() && !content.trim())) {
+      return;
+    }
+
+    setAutosaveStatus("saving");
+    const timer = setTimeout(() => {
+      try {
+        const draft: AutosaveDraft = {
+          title,
+          content,
+          coverImage,
+          tags,
+          timestamp: Date.now(),
+        };
+        localStorage.setItem(draftKey, JSON.stringify(draft));
+        setAutosaveStatus("saved");
+        setLastSavedAt(new Date());
+      } catch {
+        setAutosaveStatus("idle");
+      }
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [title, content, coverImage, tags, draftKey, isDirty]);
+
+  const handleRestoreDraft = () => {
+    if (!restorableDraftData) return;
+    setTitle(restorableDraftData.title || "");
+    setContent(restorableDraftData.content || "");
+    setCoverImage(restorableDraftData.coverImage || "");
+    setTags(restorableDraftData.tags || []);
+    setHasRestorableDraft(false);
+    toast.success("Draft restored from local backup");
+  };
+
+  const handleDiscardDraft = () => {
+    localStorage.removeItem(draftKey);
+    setHasRestorableDraft(false);
+    setRestorableDraftData(null);
+    toast.info("Autosaved draft discarded");
+  };
 
   const handleAddTag = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -91,9 +190,21 @@ export function PostEditor({ initialPost }: PostEditorProps) {
     setTags((prev) => prev.filter((t) => t !== tagToRemove));
   };
 
+  const handleCopyMarkdown = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMarkdown(true);
+      toast.success("Markdown copied to clipboard!");
+      setTimeout(() => setCopiedMarkdown(false), 2500);
+    } catch {
+      toast.error("Failed to copy markdown to clipboard");
+    }
+  }, [content]);
+
   const handleSubmit = async (targetStatus?: "draft" | "published") => {
     setFormError(null);
     setFieldErrors({});
+    setForbiddenError(false);
 
     const finalStatus = targetStatus || status;
     if (targetStatus) setStatus(targetStatus);
@@ -147,16 +258,29 @@ export function PostEditor({ initialPost }: PostEditorProps) {
           });
         }
 
+        // Clean up autosaved draft on successful save
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {
+          // ignore
+        }
+
         router.push("/dashboard");
         router.refresh();
       } catch (err: unknown) {
         let msg = "Failed to save article";
         if (axios.isAxiosError(err)) {
-          msg =
-            err.response?.data?.message ||
-            err.response?.data?.error ||
-            err.message ||
-            msg;
+          if (err.response?.status === 403) {
+            setForbiddenError(true);
+            msg =
+              "You no longer have permission to perform this action (author role required or post locked). Your article draft has been preserved below.";
+          } else {
+            msg =
+              err.response?.data?.message ||
+              err.response?.data?.error ||
+              err.message ||
+              msg;
+          }
         } else if (err instanceof Error) {
           msg = err.message;
         }
@@ -188,6 +312,19 @@ export function PostEditor({ initialPost }: PostEditorProps) {
           <span className="font-serif text-lg font-bold text-foreground">
             {isEditing ? "Edit Article" : "Write Article"}
           </span>
+
+          {/* Autosave status indicator */}
+          {autosaveStatus === "saving" && (
+            <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex">
+              <Loader2 className="size-3 animate-spin" />
+              <span>Autosaving…</span>
+            </span>
+          )}
+          {autosaveStatus === "saved" && lastSavedAt && (
+            <span className="hidden text-xs text-muted-foreground sm:inline-flex">
+              Autosaved {lastSavedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
         </div>
 
         {/* View Mode & Publish Actions */}
@@ -273,26 +410,91 @@ export function PostEditor({ initialPost }: PostEditorProps) {
         </div>
       </div>
 
-      {formError && (
-        <Alert variant="destructive">
-          <AlertTitle>Unable to save article</AlertTitle>
-          <AlertDescription>{formError}</AlertDescription>
+      {/* Restorable Draft Banner */}
+      {hasRestorableDraft && restorableDraftData && (
+        <Alert className="border-accent-solid/30 bg-accent-solid/5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+            <div className="flex flex-col gap-0.5">
+              <AlertTitle className="text-foreground font-semibold flex items-center gap-1.5 text-sm">
+                <RotateCcw className="size-4 text-accent-solid" />
+                Unsaved local draft found
+              </AlertTitle>
+              <AlertDescription className="text-muted-foreground text-xs">
+                You have unsaved changes from{" "}
+                {new Date(restorableDraftData.timestamp).toLocaleString([], {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+                . Would you like to restore them?
+              </AlertDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleDiscardDraft}
+                className="h-7 text-xs gap-1 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="size-3" />
+                Discard
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleRestoreDraft}
+                className="h-7 text-xs gap-1 bg-accent-solid text-white hover:bg-accent-solid/90"
+              >
+                <RotateCcw className="size-3" />
+                Restore Draft
+              </Button>
+            </div>
+          </div>
         </Alert>
       )}
 
-      {hasSlugChanged && (
-        <Alert className="border-accent-warm/40 bg-accent-warm/5">
-          <AlertTriangle className="size-4 text-accent-warm" />
-          <AlertTitle className="text-accent-warm font-semibold">
-            URL Slug will regenerate
-          </AlertTitle>
-          <AlertDescription className="text-muted-foreground text-xs">
-            Changing the title of this published article will update its URL slug to{" "}
-            <code className="font-mono font-medium text-foreground bg-muted px-1 rounded">
-              /post/{generatedSlug}
-            </code>
-            . Existing external links pointing to the old slug will no longer work.
-          </AlertDescription>
+      {/* EDT-13: 403 Permission Denied Mid-session Notice */}
+      {forbiddenError && (
+        <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
+          <AlertCircle className="size-4" />
+          <div className="flex flex-col gap-2 w-full">
+            <AlertTitle className="font-semibold">
+              Permission Revoked or Session Expired (403)
+            </AlertTitle>
+            <AlertDescription className="text-xs leading-relaxed">
+              Your account does not have permission to publish or update this post. Your draft content is safely preserved below. You can copy your markdown so no work is lost:
+            </AlertDescription>
+            <div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCopyMarkdown}
+                className="h-7 text-xs gap-1.5"
+              >
+                {copiedMarkdown ? (
+                  <>
+                    <Check className="size-3.5 text-green-600" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="size-3.5" />
+                    <span>Copy Markdown to Clipboard</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </Alert>
+      )}
+
+      {formError && !forbiddenError && (
+        <Alert variant="destructive">
+          <AlertTitle>Unable to save article</AlertTitle>
+          <AlertDescription>{formError}</AlertDescription>
         </Alert>
       )}
 
@@ -315,11 +517,17 @@ export function PostEditor({ initialPost }: PostEditorProps) {
             {fieldErrors.title && (
               <p className="text-xs text-destructive">{fieldErrors.title}</p>
             )}
-            {generatedSlug && (
+
+            {/* B4: Stable slug notice when editing published post, or slug preview when creating */}
+            {isEditing && initialPost?.slug ? (
+              <p className="text-xs text-muted-foreground font-mono">
+                URL: <span className="text-foreground">/post/{initialPost.slug}</span> (The URL stays the same when you rename this post)
+              </p>
+            ) : generatedSlug ? (
               <p className="text-xs text-muted-foreground font-mono">
                 Slug: /post/{generatedSlug}
               </p>
-            )}
+            ) : null}
           </div>
 
           {/* Tags Manager */}
@@ -393,21 +601,34 @@ export function PostEditor({ initialPost }: PostEditorProps) {
 
       {/* Editor & Preview Workspace */}
       <div className="mt-4 flex flex-col gap-2">
-        <Label htmlFor="content" className="text-sm font-semibold">
-          Article Body (Markdown)
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="content" className="text-sm font-semibold">
+            Article Body
+          </Label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleCopyMarkdown}
+            className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1.5"
+          >
+            {copiedMarkdown ? (
+              <Check className="size-3.5 text-green-600" />
+            ) : (
+              <Copy className="size-3.5" />
+            )}
+            <span>Copy Markdown</span>
+          </Button>
+        </div>
 
         <div className="min-h-[500px] w-full">
           {viewMode === "edit" && (
             <div className="flex flex-col gap-1">
-              <Textarea
-                id="content"
-                placeholder="Write your article in Markdown. Use # for headers, ``` for code blocks, and > for quotes…"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
+              <TiptapEditor
+                content={content}
+                onChange={setContent}
                 disabled={isPending}
-                rows={24}
-                className="w-full resize-y font-mono text-sm leading-relaxed p-4 bg-card rounded-xl border border-border"
+                placeholder="Write your article in rich text or switch to Source mode for raw markdown..."
               />
               {fieldErrors.content && (
                 <p className="text-xs text-destructive">{fieldErrors.content}</p>
@@ -430,14 +651,11 @@ export function PostEditor({ initialPost }: PostEditorProps) {
           {viewMode === "split" && (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="flex flex-col gap-1">
-                <Textarea
-                  id="content"
-                  placeholder="Write your article in Markdown…"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                <TiptapEditor
+                  content={content}
+                  onChange={setContent}
                   disabled={isPending}
-                  rows={24}
-                  className="w-full resize-y font-mono text-sm leading-relaxed p-4 bg-card rounded-xl border border-border min-h-[550px]"
+                  placeholder="Write your article in rich text or raw markdown..."
                 />
                 {fieldErrors.content && (
                   <p className="text-xs text-destructive">{fieldErrors.content}</p>
