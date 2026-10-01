@@ -63,11 +63,11 @@ export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
 export const ChangePasswordSchema = z
   .object({
     old_password: z.string().min(1, "Current password is required"),
-    new_password: z.string().min(6, "New password must be at least 6 characters"),
+    new_password: z.string().min(8, "Minimum 8 characters"),
     confirm_password: z.string().min(1, "Please confirm your new password"),
   })
   .refine((data) => data.new_password === data.confirm_password, {
-    message: "Passwords do not match",
+    message: "Passwords don't match",
     path: ["confirm_password"],
   });
 
