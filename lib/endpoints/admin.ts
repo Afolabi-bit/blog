@@ -1,5 +1,5 @@
 import apiClient from "@/lib/client";
-import type { ApiResponse, AuthorRequest, Post } from "@/lib/types";
+import type { ApiResponse, AuthorRequest, Post, Comment } from "@/lib/types";
 
 export interface ReviewAuthorRequestPayload {
   status: "approved" | "rejected";
@@ -19,6 +19,16 @@ export interface AdminAuthorRequestsResponse {
 
 export interface AdminPostsResponse {
   posts: Post[];
+  pagination?: {
+    limit: number;
+    has_next: boolean;
+    next_cursor?: string;
+    count?: number;
+  };
+}
+
+export interface AdminCommentsResponse {
+  comments: Comment[];
   pagination?: {
     limit: number;
     has_next: boolean;
@@ -69,4 +79,19 @@ export const adminEndpoints = {
     );
     return response.data;
   },
+
+  getComments: async (params?: { search?: string; limit?: number }) => {
+    const response = await apiClient.get<
+      ApiResponse<AdminCommentsResponse | Comment[]>
+    >("/api/admin/comments", { params });
+    return response.data;
+  },
+
+  deleteComment: async (id: string) => {
+    const response = await apiClient.delete<ApiResponse<null>>(
+      `/api/admin/comments/${id}`,
+    );
+    return response.data;
+  },
 };
+
