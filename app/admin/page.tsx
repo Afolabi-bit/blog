@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { AuthorRequest, Post } from "@/lib/types";
+import type { AuthorRequest, Post, Comment } from "@/lib/types";
 import {
   Check,
   ExternalLink,
@@ -37,7 +37,10 @@ import {
   Loader2,
   MessageSquare,
   Search,
+  Sparkles,
+  Star,
   Trash2,
+  User,
   UserCheck,
   X,
 } from "lucide-react";
@@ -59,6 +62,14 @@ export default function AdminPage() {
   const [postSearch, setPostSearch] = useState("");
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [featuringId, setFeaturingId] = useState<string | null>(null);
+
+  // Comments state (ADM-7)
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentSearch, setCommentSearch] = useState("");
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null);
+  const [isDeletingComment, setIsDeletingComment] = useState(false);
 
   const fetchRequests = useCallback(async (status?: string) => {
     try {
@@ -106,13 +117,39 @@ export default function AdminPage() {
     }
   }, [postSearch]);
 
+  const fetchComments = useCallback(async () => {
+    try {
+      setCommentsLoading(true);
+      const res = await adminEndpoints.getComments({
+        search: commentSearch.trim() || undefined,
+      });
+      if (res.data) {
+        if (Array.isArray(res.data)) {
+          setComments(res.data);
+        } else if ("comments" in res.data && Array.isArray((res.data as { comments: Comment[] }).comments)) {
+          setComments((res.data as { comments: Comment[] }).comments);
+        }
+      }
+    } catch (err: unknown) {
+      let msg = "Failed to load comments";
+      if (axios.isAxiosError(err)) {
+        msg = err.response?.data?.message || err.message || msg;
+      }
+      toast.error(msg);
+    } finally {
+      setCommentsLoading(false);
+    }
+  }, [commentSearch]);
+
   useEffect(() => {
     if (activeTab === "requests") {
       fetchRequests(requestStatusFilter);
-    } else {
+    } else if (activeTab === "posts") {
       fetchPosts();
+    } else if (activeTab === "comments") {
+      fetchComments();
     }
-  }, [activeTab, requestStatusFilter, fetchRequests, fetchPosts]);
+  }, [activeTab, requestStatusFilter, fetchRequests, fetchPosts, fetchComments]);
 
   const handleReview = async (id: string, status: "approved" | "rejected") => {
     setProcessingId(id);
@@ -156,6 +193,42 @@ export default function AdminPage() {
     }
   };
 
+  const handleToggleFeatured = async (post: Post) => {
+    setFeaturingId(post.id);
+    const newFeatured = !post.is_featured;
+    const actionText = newFeatured ? "Setting featured article…" : "Removing featured status…";
+    const toastId = toast.loading(actionText);
+
+    try {
+      const res = await adminEndpoints.setFeaturedPost(post.id, newFeatured);
+      if (res.status === "success") {
+        setPosts((prev) =>
+          prev.map((p) => {
+            if (p.id === post.id) return { ...p, is_featured: newFeatured };
+            if (newFeatured && p.is_featured) return { ...p, is_featured: false };
+            return p;
+          }),
+        );
+        toast.success(
+          newFeatured
+            ? "Article set as site-wide featured hero!"
+            : "Article removed from featured.",
+          { id: toastId },
+        );
+      } else {
+        toast.error(res.message || "Failed to update featured status", { id: toastId });
+      }
+    } catch (err: unknown) {
+      let msg = "Failed to update featured status";
+      if (axios.isAxiosError(err)) {
+        msg = err.response?.data?.message || err.message || msg;
+      }
+      toast.error(msg, { id: toastId });
+    } finally {
+      setFeaturingId(null);
+    }
+  };
+
   const confirmDeletePost = async () => {
     if (!postToDelete) return;
     setIsDeleting(true);
@@ -181,17 +254,46 @@ export default function AdminPage() {
     }
   };
 
+  const confirmDeleteComment = async () => {
+    if (!commentToDelete) return;
+    setIsDeletingComment(true);
+    const toastId = toast.loading("Moderator deleting comment…");
+
+    try {
+      const res = await adminEndpoints.deleteComment(commentToDelete.id);
+      if (res.status === "success") {
+        toast.success("Comment removed by administrator", { id: toastId });
+        setComments((prev) => prev.filter((c) => c.id !== commentToDelete.id));
+      } else {
+        toast.error(res.message || "Failed to delete comment", { id: toastId });
+      }
+    } catch (err: unknown) {
+      let msg = "Failed to delete comment";
+      if (axios.isAxiosError(err)) {
+        msg = err.response?.data?.message || err.message || msg;
+      }
+      toast.error(msg, { id: toastId });
+    } finally {
+      setIsDeletingComment(false);
+      setCommentToDelete(null);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="requests" className="gap-2 text-xs font-semibold">
             <UserCheck className="size-3.5" />
             <span>Author Requests</span>
           </TabsTrigger>
           <TabsTrigger value="posts" className="gap-2 text-xs font-semibold">
             <FileText className="size-3.5" />
-            <span>Post Moderation</span>
+            <span>Articles</span>
+          </TabsTrigger>
+          <TabsTrigger value="comments" className="gap-2 text-xs font-semibold">
+            <MessageSquare className="size-3.5" />
+            <span>Comments</span>
           </TabsTrigger>
         </TabsList>
 
@@ -389,7 +491,7 @@ export default function AdminPage() {
           )}
         </TabsContent>
 
-        {/* Tab 2: Post Moderation */}
+        {/* Tab 2: Post Moderation (with ADM-6 Featured Article management) */}
         <TabsContent value="posts" className="mt-6 flex flex-col gap-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-serif text-xl font-bold tracking-tight text-foreground">
@@ -437,8 +539,8 @@ export default function AdminPage() {
                   key={post.id}
                   className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-card p-4 shadow-2xs transition-colors hover:border-border/80"
                 >
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-1 max-w-xl">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Link
                         href={`/post/${post.slug}`}
                         target="_blank"
@@ -452,6 +554,15 @@ export default function AdminPage() {
                       >
                         {post.status}
                       </Badge>
+                      {post.is_featured && (
+                        <Badge
+                          variant="outline"
+                          className="font-mono text-[10px] uppercase tracking-wider py-0 gap-1 border-accent-warm/40 bg-accent-warm/15 text-accent-warm"
+                        >
+                          <Sparkles className="size-2.5" />
+                          <span>Featured</span>
+                        </Badge>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -472,6 +583,32 @@ export default function AdminPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {/* ADM-6: Featured Hero Toggle */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={featuringId === post.id}
+                      onClick={() => handleToggleFeatured(post)}
+                      className={`h-8 gap-1.5 text-xs ${
+                        post.is_featured
+                          ? "border-accent-warm/50 text-accent-warm hover:bg-accent-warm/10"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title={post.is_featured ? "Remove from featured hero" : "Set as featured hero"}
+                    >
+                      {featuringId === post.id ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Star
+                          className={`size-3.5 ${
+                            post.is_featured ? "fill-accent-warm text-accent-warm" : ""
+                          }`}
+                        />
+                      )}
+                      <span>{post.is_featured ? "Featured" : "Feature"}</span>
+                    </Button>
+
                     <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
                       <Link href={`/post/${post.slug}`} target="_blank">
                         <ExternalLink className="size-3.5" />
@@ -485,6 +622,93 @@ export default function AdminPage() {
                       onClick={() => setPostToDelete(post)}
                       className="h-8 gap-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       aria-label={`Admin delete ${post.title}`}
+                    >
+                      <Trash2 className="size-3.5" />
+                      <span>Delete</span>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Tab 3: Comment Moderation Queue (ADM-7) */}
+        <TabsContent value="comments" className="mt-6 flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="font-serif text-xl font-bold tracking-tight text-foreground">
+              Comment Moderation Queue ({comments.length})
+            </h2>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                fetchComments();
+              }}
+              className="flex items-center gap-2"
+            >
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search comments by text or user…"
+                  value={commentSearch}
+                  onChange={(e) => setCommentSearch(e.target.value)}
+                  className="h-8 w-64 pl-8 text-xs bg-card"
+                />
+              </div>
+              <Button type="submit" size="sm" variant="outline" className="h-8 text-xs">
+                Search
+              </Button>
+            </form>
+          </div>
+
+          {commentsLoading ? (
+            <div className="flex flex-col gap-3">
+              <Skeleton className="h-20 w-full rounded-xl" />
+              <Skeleton className="h-20 w-full rounded-xl" />
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-card/40 p-12 text-center">
+              <p className="text-sm text-muted-foreground italic">
+                No comments found matching moderation search.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {comments.map((comment) => (
+                <div
+                  key={comment.id}
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-card p-4 shadow-2xs transition-colors hover:border-border/80"
+                >
+                  <div className="flex flex-col gap-1 max-w-xl">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-semibold text-foreground flex items-center gap-1">
+                        <User className="size-3 text-muted-foreground" />
+                        {comment.user_name || comment.author_name || "Community Member"}
+                      </span>
+                      <span>•</span>
+                      <span className="text-muted-foreground">
+                        {formatDate(comment.created_at)}
+                      </span>
+                    </div>
+
+                    <p className="text-sm text-foreground/90 line-clamp-2 leading-relaxed">
+                      &ldquo;{comment.content}&rdquo;
+                    </p>
+
+                    <div className="text-[11px] text-muted-foreground">
+                      Post ID: <span className="font-mono">{comment.post_id}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCommentToDelete(comment)}
+                      className="h-8 gap-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      aria-label="Delete comment"
                     >
                       <Trash2 className="size-3.5" />
                       <span>Delete</span>
@@ -517,6 +741,35 @@ export default function AdminPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting ? "Deleting…" : "Delete Article"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Admin Comment Deletion AlertDialog */}
+      <AlertDialog
+        open={Boolean(commentToDelete)}
+        onOpenChange={(open) => !open && setCommentToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Comment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this comment?
+              <br />
+              <span className="mt-2 block italic text-foreground font-serif">
+                &ldquo;{commentToDelete?.content}&rdquo;
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingComment}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteComment}
+              disabled={isDeletingComment}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingComment ? "Deleting…" : "Delete Comment"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
