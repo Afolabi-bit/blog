@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -8,6 +8,9 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 import { Markdown } from "tiptap-markdown";
+import axios from "axios";
+import { toast } from "sonner";
+import { mediaEndpoints } from "@/lib/endpoints";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,6 +47,9 @@ import {
   Code2,
   FileEdit,
   Unlink,
+  Image as ImageIcon,
+  UploadCloud,
+  Loader2,
 } from "lucide-react";
 
 interface TiptapEditorProps {
@@ -63,6 +69,12 @@ export function TiptapEditor({
   const [sourceContent, setSourceContent] = useState(content);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageAlt, setImageAlt] = useState("");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -172,6 +184,63 @@ export function TiptapEditor({
   const handleInsertTable = () => {
     if (!editor) return;
     editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+  };
+
+  const handleInsertImage = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!editor || !imageUrl.trim()) return;
+    editor
+      .chain()
+      .focus()
+      .setImage({ src: imageUrl.trim(), alt: imageAlt.trim() || undefined })
+      .run();
+    setImageUrl("");
+    setImageAlt("");
+    setImageDialogOpen(false);
+  };
+
+  const handleImageFileUpload = async (file: File) => {
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Please upload a JPG, PNG, WEBP, or GIF image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image file is too large (maximum 5MB).");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    const toastId = toast.loading("Uploading image to storage…");
+    try {
+      const res = await mediaEndpoints.upload(file);
+      if (res.status === "success" && res.data?.url) {
+        if (editor) {
+          editor
+            .chain()
+            .focus()
+            .setImage({
+              src: res.data.url,
+              alt: imageAlt.trim() || file.name,
+            })
+            .run();
+        }
+        toast.success("Image uploaded and inserted!", { id: toastId });
+        setImageUrl("");
+        setImageAlt("");
+        setImageDialogOpen(false);
+      } else {
+        toast.error(res.message || "Failed to upload image", { id: toastId });
+      }
+    } catch (err: unknown) {
+      let msg = "Failed to upload image";
+      if (axios.isAxiosError(err)) {
+        msg = err.response?.data?.message || err.message || msg;
+      }
+      toast.error(msg, { id: toastId });
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   if (!editor) {
@@ -509,6 +578,23 @@ export function TiptapEditor({
               variant="ghost"
               size="icon"
               disabled={isSourceMode || disabled}
+              onClick={() => setImageDialogOpen(true)}
+              aria-label="Insert Image"
+              className="size-8"
+            >
+              <ImageIcon className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Insert Image</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={isSourceMode || disabled}
               onClick={handleInsertTable}
               aria-label="Insert Table"
               className="size-8"
@@ -623,6 +709,103 @@ export function TiptapEditor({
               </Button>
               <Button type="submit" className="bg-accent-solid text-white hover:bg-accent-solid/90">
                 Save Link
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Insertion Dialog (RTE-7) */}
+      <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleInsertImage}>
+            <DialogHeader>
+              <DialogTitle>Insert Image</DialogTitle>
+              <DialogDescription>
+                Upload an image or paste a URL to insert directly into your story.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="my-4 flex flex-col gap-4">
+              {/* File upload dropzone */}
+              <div
+                onClick={() => !isUploadingImage && imageFileInputRef.current?.click()}
+                className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-border rounded-xl hover:border-accent-solid/50 cursor-pointer bg-muted/20 transition-colors"
+              >
+                <input
+                  ref={imageFileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImageFileUpload(file);
+                  }}
+                  disabled={isUploadingImage}
+                />
+                {isUploadingImage ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="size-6 animate-spin text-accent-solid" />
+                    <p className="text-xs text-muted-foreground">Uploading image to storage…</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-1.5 text-center">
+                    <UploadCloud className="size-6 text-muted-foreground" />
+                    <p className="text-xs font-medium text-foreground">Click to upload image</p>
+                    <p className="text-[10px] text-muted-foreground">PNG, JPG, WEBP, GIF up to 5MB</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="relative flex items-center justify-center">
+                <span className="bg-background px-2 text-[10px] text-muted-foreground uppercase font-mono tracking-wider">
+                  Or enter URL
+                </span>
+                <div className="absolute inset-0 -z-10 flex items-center">
+                  <div className="w-full border-t border-border/60" />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="image-url" className="text-xs">Image URL</Label>
+                <Input
+                  id="image-url"
+                  type="text"
+                  placeholder="https://example.com/photo.jpg"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  disabled={isUploadingImage}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="image-alt" className="text-xs">Alt Text (Accessibility description)</Label>
+                <Input
+                  id="image-alt"
+                  type="text"
+                  placeholder="Descriptive label for screen readers"
+                  value={imageAlt}
+                  onChange={(e) => setImageAlt(e.target.value)}
+                  disabled={isUploadingImage}
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setImageDialogOpen(false)}
+                disabled={isUploadingImage}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={!imageUrl.trim() || isUploadingImage}
+                className="bg-accent-solid text-white hover:bg-accent-solid/90"
+              >
+                Insert Image
               </Button>
             </DialogFooter>
           </form>
