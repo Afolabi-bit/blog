@@ -28,6 +28,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import type { AuthorRequest, Post, Comment } from "@/lib/types";
 import {
   Check,
@@ -55,12 +70,15 @@ export default function AdminPage() {
   const [requestStatusFilter, setRequestStatusFilter] = useState<string>("pending");
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [reviewingRequest, setReviewingRequest] = useState<AuthorRequest | null>(null);
+  const [sheetReviewNotes, setSheetReviewNotes] = useState("");
 
   // Posts state
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postSearch, setPostSearch] = useState("");
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
+  const [postToReplaceFeatured, setPostToReplaceFeatured] = useState<Post | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [featuringId, setFeaturingId] = useState<string | null>(null);
 
@@ -151,9 +169,13 @@ export default function AdminPage() {
     }
   }, [activeTab, requestStatusFilter, fetchRequests, fetchPosts, fetchComments]);
 
-  const handleReview = async (id: string, status: "approved" | "rejected") => {
+  const handleReview = async (
+    id: string,
+    status: "approved" | "rejected",
+    overrideNotes?: string
+  ) => {
     setProcessingId(id);
-    const notes = reviewNotes[id] || "";
+    const notes = overrideNotes !== undefined ? overrideNotes : (reviewNotes[id] || "");
     const actionLabel = status === "approved" ? "Approving" : "Declining";
     const toastId = toast.loading(`${actionLabel} author application…`);
 
@@ -229,6 +251,19 @@ export default function AdminPage() {
     }
   };
 
+  const handleFeatureClick = (post: Post) => {
+    if (post.is_featured) {
+      handleToggleFeatured(post);
+      return;
+    }
+    const hasExistingFeatured = posts.some((p) => p.is_featured && p.id !== post.id);
+    if (hasExistingFeatured) {
+      setPostToReplaceFeatured(post);
+    } else {
+      handleToggleFeatured(post);
+    }
+  };
+
   const confirmDeletePost = async () => {
     if (!postToDelete) return;
     setIsDeleting(true);
@@ -283,15 +318,27 @@ export default function AdminPage() {
     <div className="flex flex-col gap-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 max-w-lg">
-          <TabsTrigger value="requests" className="gap-2 text-xs font-semibold">
+          <TabsTrigger
+            value="requests"
+            aria-current={activeTab === "requests" ? "page" : undefined}
+            className="gap-2 text-xs font-semibold"
+          >
             <UserCheck className="size-3.5" />
             <span>Author Requests</span>
           </TabsTrigger>
-          <TabsTrigger value="posts" className="gap-2 text-xs font-semibold">
+          <TabsTrigger
+            value="posts"
+            aria-current={activeTab === "posts" ? "page" : undefined}
+            className="gap-2 text-xs font-semibold"
+          >
             <FileText className="size-3.5" />
             <span>Articles</span>
           </TabsTrigger>
-          <TabsTrigger value="comments" className="gap-2 text-xs font-semibold">
+          <TabsTrigger
+            value="comments"
+            aria-current={activeTab === "comments" ? "page" : undefined}
+            className="gap-2 text-xs font-semibold"
+          >
             <MessageSquare className="size-3.5" />
             <span>Comments</span>
           </TabsTrigger>
@@ -451,40 +498,56 @@ export default function AdminPage() {
                     )}
                   </CardContent>
 
-                  {req.status === "pending" && (
-                    <CardFooter className="flex justify-end gap-2 border-t border-border/50 p-4 pt-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={processingId === req.id}
-                        onClick={() => handleReview(req.id, "rejected")}
-                        className="h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        {processingId === req.id ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : (
-                          <X className="size-3.5" />
-                        )}
-                        <span>Decline</span>
-                      </Button>
+                  <CardFooter className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 p-4 pt-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setReviewingRequest(req);
+                        setSheetReviewNotes(reviewNotes[req.id] || "");
+                      }}
+                      className="h-8 gap-1.5 text-xs text-foreground"
+                    >
+                      <FileText className="size-3.5" />
+                      <span>Review application</span>
+                    </Button>
 
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={processingId === req.id}
-                        onClick={() => handleReview(req.id, "approved")}
-                        className="h-8 gap-1.5 text-xs bg-status-success text-white hover:bg-status-success/90"
-                      >
-                        {processingId === req.id ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : (
-                          <Check className="size-3.5" />
-                        )}
-                        <span>Approve Author</span>
-                      </Button>
-                    </CardFooter>
-                  )}
+                    {req.status === "pending" && (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={processingId === req.id}
+                          onClick={() => handleReview(req.id, "rejected")}
+                          className="h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          {processingId === req.id ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <X className="size-3.5" />
+                          )}
+                          <span>Reject</span>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={processingId === req.id}
+                          onClick={() => handleReview(req.id, "approved")}
+                          className="h-8 gap-1.5 text-xs bg-status-success text-white hover:bg-status-success/90"
+                        >
+                          {processingId === req.id ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Check className="size-3.5" />
+                          )}
+                          <span>Approve</span>
+                        </Button>
+                      </div>
+                    )}
+                  </CardFooter>
                 </Card>
               ))}
             </div>
@@ -533,102 +596,114 @@ export default function AdminPage() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {posts.map((post) => (
-                <div
-                  key={post.id}
-                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-card p-4 shadow-2xs transition-colors hover:border-border/80"
-                >
-                  <div className="flex flex-col gap-1 max-w-xl">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link
-                        href={`/post/${post.slug}`}
-                        target="_blank"
-                        className="font-serif text-base font-bold text-foreground hover:text-accent-solid transition-colors line-clamp-1"
-                      >
-                        {post.title}
-                      </Link>
-                      <Badge
-                        variant="secondary"
-                        className="font-mono text-[10px] uppercase tracking-wider py-0"
-                      >
-                        {post.status}
-                      </Badge>
-                      {post.is_featured && (
-                        <Badge
-                          variant="outline"
-                          className="font-mono text-[10px] uppercase tracking-wider py-0 gap-1 border-accent-warm/40 bg-accent-warm/15 text-accent-warm"
+            <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-2xs">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Article</TableHead>
+                    <TableHead>Author</TableHead>
+                    <TableHead>Engagement</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {posts.map((post) => (
+                    <TableRow key={post.id}>
+                      <TableCell className="max-w-xs font-medium sm:max-w-sm">
+                        <Link
+                          href={`/post/${post.slug}`}
+                          target="_blank"
+                          className="font-serif font-bold text-foreground hover:text-accent-solid transition-colors line-clamp-1"
                         >
-                          <Sparkles className="size-2.5" />
-                          <span>Featured</span>
-                        </Badge>
-                      )}
-                    </div>
+                          {post.title}
+                        </Link>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {formatDate(post.created_at)}
+                        </p>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {post.author_name}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 mr-3">
+                          <Heart className="size-3 text-accent-warm" />
+                          {post.likes_count || 0}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <MessageSquare className="size-3" />
+                          {post.comments_count || 0}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {post.is_featured ? (
+                          <Badge
+                            variant="outline"
+                            className="font-mono text-[10px] uppercase tracking-wider py-0 gap-1 border-accent-solid/40 bg-accent-solid text-white"
+                          >
+                            <Sparkles className="size-2.5" />
+                            <span>Featured</span>
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="secondary"
+                            className="font-mono text-[10px] uppercase tracking-wider py-0 capitalize"
+                          >
+                            {post.status}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          {/* Feature Hero Toggle */}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={featuringId === post.id}
+                            onClick={() => handleFeatureClick(post)}
+                            className={`h-7 gap-1 text-xs ${
+                              post.is_featured
+                                ? "border-accent-solid text-accent-solid hover:bg-accent-solid/10"
+                                : "text-muted-foreground hover:text-foreground"
+                            }`}
+                            title={post.is_featured ? "Remove from featured hero" : "Set as featured hero"}
+                          >
+                            {featuringId === post.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <Star
+                                className={`size-3 ${
+                                  post.is_featured ? "fill-accent-solid text-accent-solid" : ""
+                                }`}
+                              />
+                            )}
+                            <span>{post.is_featured ? "Featured" : "Feature"}</span>
+                          </Button>
 
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span>Author: {post.author_name}</span>
-                      <span>•</span>
-                      <span>{formatDate(post.created_at)}</span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <Heart className="size-3" />
-                        {post.likes_count || 0}
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <MessageSquare className="size-3" />
-                        {post.comments_count || 0}
-                      </span>
-                    </div>
-                  </div>
+                          <Button asChild variant="outline" size="sm" className="h-7 gap-1 text-xs">
+                            <Link href={`/post/${post.slug}`} target="_blank">
+                              <ExternalLink className="size-3" />
+                              <span>View</span>
+                            </Link>
+                          </Button>
 
-                  <div className="flex items-center gap-2">
-                    {/* ADM-6: Featured Hero Toggle */}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={featuringId === post.id}
-                      onClick={() => handleToggleFeatured(post)}
-                      className={`h-8 gap-1.5 text-xs ${
-                        post.is_featured
-                          ? "border-accent-warm/50 text-accent-warm hover:bg-accent-warm/10"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      title={post.is_featured ? "Remove from featured hero" : "Set as featured hero"}
-                    >
-                      {featuringId === post.id ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Star
-                          className={`size-3.5 ${
-                            post.is_featured ? "fill-accent-warm text-accent-warm" : ""
-                          }`}
-                        />
-                      )}
-                      <span>{post.is_featured ? "Featured" : "Feature"}</span>
-                    </Button>
-
-                    <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-                      <Link href={`/post/${post.slug}`} target="_blank">
-                        <ExternalLink className="size-3.5" />
-                        <span>View</span>
-                      </Link>
-                    </Button>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setPostToDelete(post)}
-                      className="h-8 gap-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                      aria-label={`Admin delete ${post.title}`}
-                    >
-                      <Trash2 className="size-3.5" />
-                      <span>Delete</span>
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setPostToDelete(post)}
+                            className="h-7 gap-1 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            aria-label={`Admin delete ${post.title}`}
+                          >
+                            <Trash2 className="size-3 text-destructive" />
+                            <span className="text-destructive">Delete</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </TabsContent>
@@ -721,6 +796,35 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Replace Featured Post AlertDialog */}
+      <AlertDialog
+        open={Boolean(postToReplaceFeatured)}
+        onOpenChange={(open) => !open && setPostToReplaceFeatured(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace featured post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will replace the current featured post. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (postToReplaceFeatured) {
+                  handleToggleFeatured(postToReplaceFeatured);
+                  setPostToReplaceFeatured(null);
+                }
+              }}
+              className="bg-accent-solid text-white hover:bg-accent-solid/90"
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Admin Post Deletion AlertDialog */}
       <AlertDialog
         open={Boolean(postToDelete)}
@@ -728,9 +832,11 @@ export default function AdminPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Moderator Post Deletion</AlertDialogTitle>
+            <AlertDialogTitle>
+              Permanently delete &ldquo;{postToDelete?.title}&rdquo;?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to permanently delete &ldquo;{postToDelete?.title}&rdquo; by {postToDelete?.author_name}? This action is irreversible and removes all associated data from the platform.
+              This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -740,7 +846,7 @@ export default function AdminPage() {
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? "Deleting…" : "Delete Article"}
+              {isDeleting ? "Deleting…" : "Delete post"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -753,13 +859,9 @@ export default function AdminPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Comment?</AlertDialogTitle>
+            <AlertDialogTitle>Delete comment?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this comment?
-              <br />
-              <span className="mt-2 block italic text-foreground font-serif">
-                &ldquo;{commentToDelete?.content}&rdquo;
-              </span>
+              This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -769,11 +871,119 @@ export default function AdminPage() {
               disabled={isDeletingComment}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeletingComment ? "Deleting…" : "Delete Comment"}
+              {isDeletingComment ? "Deleting…" : "Delete comment"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Review Sheet for Author Applications */}
+      <Sheet
+        open={Boolean(reviewingRequest)}
+        onOpenChange={(open) => !open && setReviewingRequest(null)}
+      >
+        <SheetContent side="right" className="sm:max-w-md flex flex-col gap-6 overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="font-serif text-xl font-bold">
+              Review application — {reviewingRequest?.user_name || "Applicant"}
+            </SheetTitle>
+            <SheetDescription>
+              Review the applicant details, writing samples, and editorial motivation.
+            </SheetDescription>
+          </SheetHeader>
+
+          {reviewingRequest && (
+            <div className="flex flex-col gap-5 text-sm">
+              <div>
+                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground">
+                  Biography
+                </span>
+                <p className="mt-1 font-serif text-sm leading-relaxed text-foreground rounded-lg border border-border bg-muted/20 p-3">
+                  {reviewingRequest.bio}
+                </p>
+              </div>
+
+              {reviewingRequest.motivation && (
+                <div>
+                  <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground">
+                    Motivation
+                  </span>
+                  <p className="mt-1 font-serif text-sm leading-relaxed text-foreground rounded-lg border border-border bg-muted/20 p-3">
+                    {reviewingRequest.motivation}
+                  </p>
+                </div>
+              )}
+
+              {reviewingRequest.sample_links && reviewingRequest.sample_links.length > 0 && (
+                <div>
+                  <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground">
+                    Sample Links
+                  </span>
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    {reviewingRequest.sample_links.map((link) => (
+                      <a
+                        key={link}
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-accent-solid hover:underline break-all"
+                      >
+                        <ExternalLink className="size-3 shrink-0" />
+                        <span>{link}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {reviewingRequest.status === "pending" && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="sheet-review-notes" className="text-xs font-semibold">
+                    Rejection reason (optional)
+                  </Label>
+                  <Textarea
+                    id="sheet-review-notes"
+                    aria-label="Rejection reason (optional)"
+                    placeholder="Feedback or rationale for rejection…"
+                    rows={3}
+                    value={sheetReviewNotes}
+                    onChange={(e) => setSheetReviewNotes(e.target.value)}
+                    className="text-xs bg-background resize-none"
+                  />
+                </div>
+              )}
+
+              {reviewingRequest.status === "pending" && (
+                <div className="mt-2 flex items-center justify-end gap-2.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => {
+                      await handleReview(reviewingRequest.id, "rejected", sheetReviewNotes);
+                      setReviewingRequest(null);
+                    }}
+                    disabled={processingId === reviewingRequest.id}
+                    className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      await handleReview(reviewingRequest.id, "approved", sheetReviewNotes);
+                      setReviewingRequest(null);
+                    }}
+                    disabled={processingId === reviewingRequest.id}
+                    className="bg-accent-solid text-white hover:bg-accent-solid/90"
+                  >
+                    Approve
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
