@@ -9,7 +9,29 @@ import { postsEndpoints } from "@/lib/endpoints";
 import { CreatePostSchema } from "@/lib/validations";
 import { MarkdownRenderer } from "@/components/post/MarkdownRenderer";
 import { CoverUploader } from "@/components/editor/CoverUploader";
-import { TiptapEditor } from "@/components/editor/TiptapEditor";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const TiptapEditor = dynamic(
+  () =>
+    import("@/components/editor/TiptapEditor").then((mod) => mod.TiptapEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-[450px] w-full flex-col gap-4 rounded-xl border border-border bg-card p-6 shadow-2xs">
+        <div className="flex items-center gap-2 border-b border-border/50 pb-3">
+          <Skeleton className="h-8 w-24 rounded-md" />
+          <Skeleton className="h-8 w-32 rounded-md" />
+          <Skeleton className="h-8 w-8 rounded-md" />
+          <Skeleton className="h-8 w-8 rounded-md" />
+        </div>
+        <Skeleton className="h-6 w-3/4 rounded-md" />
+        <Skeleton className="h-4 w-full rounded-md" />
+        <Skeleton className="h-4 w-5/6 rounded-md" />
+      </div>
+    ),
+  }
+);
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,10 +89,15 @@ export function PostEditor({ initialPost }: PostEditorProps) {
   const [isPending, startTransition] = useTransition();
 
   // Autosave states
-  const [autosaveStatus, setAutosaveStatus] = useState<"saved" | "saving" | "idle">("idle");
+  const [autosaveStatus, setAutosaveStatus] = useState<"saved" | "saving" | "unsaved" | "idle">("idle");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [hasRestorableDraft, setHasRestorableDraft] = useState(false);
   const [restorableDraftData, setRestorableDraftData] = useState<AutosaveDraft | null>(null);
+
+  // Detect legacy HTML posts
+  const isLegacyHtml = initialPost?.content
+    ? /<p>|<div|<span|<h[1-6]|<br\s*\/?>/i.test(initialPost.content)
+    : false;
 
   // Slug generation helper for display
   const generatedSlug = title
@@ -122,14 +149,29 @@ export function PostEditor({ initialPost }: PostEditorProps) {
     }
   }, [draftKey, initialPost]);
 
-  // Debounced autosave (5s)
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+
+  useEffect(() => {
+    postsEndpoints
+      .getTags()
+      .then((res) => {
+        if (res.data?.tags) {
+          setAvailableTags(res.data.tags.map((t) => t.name));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Debounced autosave (2s per M3.2 plan)
   useEffect(() => {
     if (!isDirty || (!title.trim() && !content.trim())) {
+      setAutosaveStatus("idle");
       return;
     }
 
-    setAutosaveStatus("saving");
+    setAutosaveStatus("unsaved");
     const timer = setTimeout(() => {
+      setAutosaveStatus("saving");
       try {
         const draft: AutosaveDraft = {
           title,
@@ -144,7 +186,7 @@ export function PostEditor({ initialPost }: PostEditorProps) {
       } catch {
         setAutosaveStatus("idle");
       }
-    }, 5000);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [title, content, coverImage, tags, draftKey, isDirty]);
@@ -166,9 +208,9 @@ export function PostEditor({ initialPost }: PostEditorProps) {
     toast.info("Autosaved draft discarded");
   };
 
-  const handleAddTag = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const cleanTag = tagInput
+  const handleAddTag = (specificTag?: string) => {
+    const raw = specificTag || tagInput;
+    const cleanTag = raw
       .trim()
       .toLowerCase()
       .replace(/[^\w-]/g, "");
@@ -178,8 +220,8 @@ export function PostEditor({ initialPost }: PostEditorProps) {
       setTagInput("");
       return;
     }
-    if (tags.length >= 8) {
-      toast.error("Maximum 8 tags allowed per article");
+    if (tags.length >= 10) {
+      toast.error("Maximum 10 tags allowed per article");
       return;
     }
     setTags((prev) => [...prev, cleanTag]);
@@ -235,27 +277,25 @@ export function PostEditor({ initialPost }: PostEditorProps) {
 
       try {
         if (isEditing && initialPost) {
-          const res = await postsEndpoints.updatePost(initialPost.id, {
+          await postsEndpoints.updatePost(initialPost.id, {
             title,
             content,
             cover_image: coverImage || undefined,
             status: finalStatus,
             tags,
           });
-          toast.success(res.message || "Article updated successfully!", {
-            id: toastId,
-          });
+          const toastMsg = finalStatus === "published" ? "Published" : "Draft saved";
+          toast.success(toastMsg, { id: toastId });
         } else {
-          const res = await postsEndpoints.createPost({
+          await postsEndpoints.createPost({
             title,
             content,
             cover_image: coverImage || undefined,
             status: finalStatus,
             tags,
           });
-          toast.success(res.message || "Article created successfully!", {
-            id: toastId,
-          });
+          const toastMsg = finalStatus === "published" ? "Published" : "Draft saved";
+          toast.success(toastMsg, { id: toastId });
         }
 
         // Clean up autosaved draft on successful save
@@ -272,8 +312,21 @@ export function PostEditor({ initialPost }: PostEditorProps) {
         if (axios.isAxiosError(err)) {
           if (err.response?.status === 403) {
             setForbiddenError(true);
-            msg =
-              "You no longer have permission to perform this action (author role required or post locked). Your article draft has been preserved below.";
+            try {
+              sessionStorage.setItem(
+                "bloggr:expired-session-draft",
+                JSON.stringify({
+                  title,
+                  content,
+                  coverImage,
+                  tags,
+                  timestamp: Date.now(),
+                })
+              );
+            } catch {
+              // ignore
+            }
+            msg = "Your session expired. Copy your work before leaving.";
           } else {
             msg =
               err.response?.data?.message ||
@@ -314,17 +367,35 @@ export function PostEditor({ initialPost }: PostEditorProps) {
           </span>
 
           {/* Autosave status indicator */}
-          {autosaveStatus === "saving" && (
-            <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex">
-              <Loader2 className="size-3 animate-spin" />
-              <span>Autosaving…</span>
-            </span>
-          )}
-          {autosaveStatus === "saved" && lastSavedAt && (
-            <span className="hidden text-xs text-muted-foreground sm:inline-flex">
-              Autosaved {lastSavedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          )}
+          <div
+            role="status"
+            aria-live="polite"
+            className="hidden items-center gap-1.5 font-mono text-xs tabular-nums text-muted-foreground sm:inline-flex"
+          >
+            {autosaveStatus === "saving" && (
+              <>
+                <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                <span>Saving…</span>
+              </>
+            )}
+            {autosaveStatus === "saved" && (
+              <>
+                <Check className="size-3 text-status-success text-green-600" />
+                <span>
+                  Saved
+                  {lastSavedAt
+                    ? ` ${lastSavedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                    : ""}
+                </span>
+              </>
+            )}
+            {autosaveStatus === "unsaved" && (
+              <>
+                <span className="size-2 rounded-full bg-status-warning bg-amber-500 inline-block" />
+                <span>Unsaved changes</span>
+              </>
+            )}
+          </div>
         </div>
 
         {/* View Mode & Publish Actions */}
@@ -455,16 +526,16 @@ export function PostEditor({ initialPost }: PostEditorProps) {
         </Alert>
       )}
 
-      {/* EDT-13: 403 Permission Denied Mid-session Notice */}
+      {/* 403 Permission Denied Mid-session Notice */}
       {forbiddenError && (
         <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
           <AlertCircle className="size-4" />
           <div className="flex flex-col gap-2 w-full">
             <AlertTitle className="font-semibold">
-              Permission Revoked or Session Expired (403)
+              Your session expired. Copy your work before leaving.
             </AlertTitle>
             <AlertDescription className="text-xs leading-relaxed">
-              Your account does not have permission to publish or update this post. Your draft content is safely preserved below. You can copy your markdown so no work is lost:
+              Your session expired or permissions were changed. Your draft has been preserved in session storage. Copy your content before leaving:
             </AlertDescription>
             <div>
               <Button
@@ -477,17 +548,29 @@ export function PostEditor({ initialPost }: PostEditorProps) {
                 {copiedMarkdown ? (
                   <>
                     <Check className="size-3.5 text-green-600" />
-                    <span>Copied!</span>
+                    <span>Copied</span>
                   </>
                 ) : (
                   <>
                     <Copy className="size-3.5" />
-                    <span>Copy Markdown to Clipboard</span>
+                    <span>Copy content</span>
                   </>
                 )}
               </Button>
             </div>
           </div>
+        </Alert>
+      )}
+
+      {/* Legacy HTML Post Notice */}
+      {isLegacyHtml && (
+        <Alert className="border-border bg-muted/40">
+          <AlertTitle className="text-sm font-semibold">
+            This post was written in an older format.
+          </AlertTitle>
+          <AlertDescription className="text-xs text-muted-foreground">
+            Saving changes will convert it to modern markdown.
+          </AlertDescription>
         </Alert>
       )}
 
@@ -503,16 +586,17 @@ export function PostEditor({ initialPost }: PostEditorProps) {
         <div className="flex flex-col gap-4 lg:col-span-8">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="title" className="text-sm font-semibold">
-              Article Title
+              Post title
             </Label>
             <Input
               id="title"
-              placeholder="e.g. Building High-Throughput Event Streams in Go"
+              placeholder="Post title"
+              aria-label="Post title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={isPending}
               aria-invalid={Boolean(fieldErrors.title)}
-              className="font-serif text-lg font-bold sm:text-xl h-11 bg-card"
+              className="font-serif text-2xl font-bold sm:text-3xl h-12 bg-card"
             />
             {fieldErrors.title && (
               <p className="text-xs text-destructive">{fieldErrors.title}</p>
@@ -552,16 +636,18 @@ export function PostEditor({ initialPost }: PostEditorProps) {
                 </Badge>
               ))}
 
-              <div className="flex items-center gap-1.5">
+              <div className="relative flex items-center gap-1.5">
                 <Input
                   type="text"
-                  placeholder="Add tag (e.g. golang)…"
+                  placeholder="Add tag…"
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === ",") {
                       e.preventDefault();
                       handleAddTag();
+                    } else if (e.key === "Backspace" && !tagInput && tags.length > 0) {
+                      handleRemoveTag(tags[tags.length - 1]);
                     }
                   }}
                   disabled={isPending}
@@ -574,9 +660,37 @@ export function PostEditor({ initialPost }: PostEditorProps) {
                   onClick={() => handleAddTag()}
                   disabled={isPending || !tagInput.trim()}
                   className="h-8 px-2 text-xs"
+                  aria-label="Add tag"
                 >
                   <Plus className="size-3.5" />
                 </Button>
+
+                {tagInput.trim() &&
+                  availableTags.filter(
+                    (t) =>
+                      !tags.includes(t) &&
+                      t.toLowerCase().includes(tagInput.toLowerCase().trim())
+                  ).length > 0 && (
+                    <div className="absolute left-0 top-full z-20 mt-1 flex flex-wrap gap-1 rounded-md border border-border bg-popover p-1.5 shadow-md max-w-xs">
+                      {availableTags
+                        .filter(
+                          (t) =>
+                            !tags.includes(t) &&
+                            t.toLowerCase().includes(tagInput.toLowerCase().trim())
+                        )
+                        .slice(0, 5)
+                        .map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            onClick={() => handleAddTag(suggestion)}
+                            className="rounded px-2 py-0.5 font-mono text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            #{suggestion}
+                          </button>
+                        ))}
+                    </div>
+                  )}
               </div>
             </div>
             {fieldErrors.tags && (
