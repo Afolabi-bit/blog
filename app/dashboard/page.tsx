@@ -70,7 +70,7 @@ export default async function DashboardPage() {
           <Button asChild className="gap-2 bg-accent-solid text-white hover:bg-accent-solid/90">
             <Link href="/dashboard/create">
               <Plus className="size-4" />
-              <span>New Article</span>
+              <span>Write a post</span>
             </Link>
           </Button>
         )}
