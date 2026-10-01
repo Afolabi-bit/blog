@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCw, Home } from "lucide-react";
 
@@ -12,10 +13,16 @@ export default function ErrorBoundary({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
+
   useEffect(() => {
-    // Log unexpected errors for telemetry
-    console.error("Unhandled application error:", error);
+    console.error("Unhandled error loading page:", error);
   }, [error]);
+
+  const handleTryAgain = () => {
+    reset();
+    router.refresh();
+  };
 
   return (
     <div className="flex min-h-[65vh] flex-col items-center justify-center px-4 text-center">
@@ -24,26 +31,22 @@ export default function ErrorBoundary({
       </div>
 
       <span className="font-mono text-xs font-semibold uppercase tracking-widest text-destructive">
-        Application Error
+        Error
       </span>
 
-      <h1 className="mt-2 font-serif text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-        Something went wrong
+      <h1 className="mt-2 font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        Something went wrong loading this page.
       </h1>
 
       <p className="mt-2 max-w-md text-sm text-muted-foreground leading-relaxed">
-        An unexpected error occurred while loading this page. You can try refreshing
-        the component or return home.
+        An unexpected issue occurred while rendering this view. Try reloading or return home.
       </p>
 
-      {error.message && process.env.NODE_ENV !== "production" && (
-        <div className="mt-4 max-w-lg rounded-lg border border-border bg-muted/40 p-3 text-left font-mono text-xs text-muted-foreground overflow-x-auto">
-          {error.message}
-        </div>
-      )}
-
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-        <Button onClick={() => reset()} className="gap-2 bg-accent-solid text-white hover:bg-accent-solid/90">
+        <Button
+          onClick={handleTryAgain}
+          className="gap-2 bg-accent-solid text-white hover:bg-accent-solid/90"
+        >
           <RefreshCw className="size-4" />
           <span>Try again</span>
         </Button>
@@ -51,7 +54,7 @@ export default function ErrorBoundary({
         <Button asChild variant="outline" className="gap-2">
           <Link href="/">
             <Home className="size-4" />
-            <span>Return to Home</span>
+            <span>Go home</span>
           </Link>
         </Button>
       </div>
