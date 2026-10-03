@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -20,7 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { AlertCircle, Loader2, LogIn } from "lucide-react";
+import { Loader2, LogIn } from "lucide-react";
 
 export default function LoginPage() {
   const { setUser } = useAuth();
@@ -104,11 +104,13 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4.5">
             {formError && (
-              <Alert variant="destructive">
-                <AlertCircle className="size-4" />
-                <AlertTitle>Unable to sign in</AlertTitle>
-                <AlertDescription>{formError}</AlertDescription>
-              </Alert>
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[11px] text-destructive"
+              >
+                <AlertCircle className="mt-px size-3.5 shrink-0" />
+                <span>{formError}</span>
+              </div>
             )}
 
             <div className="flex flex-col gap-1.5">
@@ -129,7 +131,7 @@ export default function LoginPage() {
                 className="bg-background"
               />
               {fieldErrors.email && (
-                <p id="email-error" className="text-xs text-destructive">
+                <p id="email-error" className="text-[11px] text-destructive">
                   {fieldErrors.email}
                 </p>
               )}
@@ -160,7 +162,7 @@ export default function LoginPage() {
                 className="bg-background"
               />
               {fieldErrors.password && (
-                <p id="password-error" className="text-xs text-destructive">
+                <p id="password-error" className="text-[11px] text-destructive">
                   {fieldErrors.password}
                 </p>
               )}
