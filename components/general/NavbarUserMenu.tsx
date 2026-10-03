@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "./AuthProvider";
 import type { AuthUser } from "@/lib/types";
@@ -42,8 +42,15 @@ interface NavbarUserMenuProps {
 export function NavbarUserMenu({ user: initialUser }: NavbarUserMenuProps) {
   const { user: contextUser, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const user = contextUser ?? initialUser;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Use initialUser during SSR and first render to avoid hydration mismatch.
+  // After mount, switch to live context user.
+  const user = mounted ? (contextUser ?? initialUser) : initialUser;
   const displayName =
     user?.full_name || user?.username || user?.email?.split("@")[0] || "User";
   const initials = displayName
