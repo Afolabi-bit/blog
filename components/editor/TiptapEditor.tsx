@@ -180,20 +180,29 @@ export function TiptapEditor({
     e.preventDefault();
     if (!editor) return;
 
-    if (!linkUrl.trim()) {
+    const trimmed = linkUrl.trim();
+    if (!trimmed) {
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
-    } else {
-      let finalUrl = linkUrl.trim();
-      if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://") && !finalUrl.startsWith("/")) {
-        finalUrl = `https://${finalUrl}`;
-      }
-      editor
-        .chain()
-        .focus()
-        .extendMarkRange("link")
-        .setLink({ href: finalUrl })
-        .run();
+      setLinkDialogOpen(false);
+      return;
     }
+
+    if (/^(javascript|data|vbscript):/i.test(trimmed)) {
+      toast.error("Invalid URL scheme. JavaScript links are not permitted.");
+      return;
+    }
+
+    let finalUrl = trimmed;
+    if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://") && !finalUrl.startsWith("/")) {
+      finalUrl = `https://${finalUrl}`;
+    }
+
+    editor
+      .chain()
+      .focus()
+      .extendMarkRange("link")
+      .setLink({ href: finalUrl })
+      .run();
     setLinkDialogOpen(false);
   };
 
