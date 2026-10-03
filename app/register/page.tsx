@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle as AlertCircleInline } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -20,7 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { AlertCircle, Loader2, UserPlus } from "lucide-react";
+import { Loader2, UserPlus } from "lucide-react";
 
 export default function RegisterPage() {
   const { setUser } = useAuth();
@@ -107,11 +107,13 @@ export default function RegisterPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4.5">
             {formError && (
-              <Alert variant="destructive">
-                <AlertCircle className="size-4" />
-                <AlertTitle>Registration error</AlertTitle>
-                <AlertDescription>{formError}</AlertDescription>
-              </Alert>
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[11px] text-destructive"
+              >
+                <AlertCircleInline className="mt-px size-3.5 shrink-0" />
+                <span>{formError}</span>
+              </div>
             )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -135,7 +137,7 @@ export default function RegisterPage() {
                   className="bg-background"
                 />
                 {fieldErrors.first_name && (
-                  <p id="first_name-error" className="text-xs text-destructive">
+                  <p id="first_name-error" className="text-[11px] text-destructive">
                     {fieldErrors.first_name}
                   </p>
                 )}
@@ -161,7 +163,7 @@ export default function RegisterPage() {
                   className="bg-background"
                 />
                 {fieldErrors.last_name && (
-                  <p id="last_name-error" className="text-xs text-destructive">
+                  <p id="last_name-error" className="text-[11px] text-destructive">
                     {fieldErrors.last_name}
                   </p>
                 )}
@@ -186,7 +188,7 @@ export default function RegisterPage() {
                 className="bg-background"
               />
               {fieldErrors.email && (
-                <p id="email-error" className="text-xs text-destructive">
+                <p id="email-error" className="text-[11px] text-destructive">
                   {fieldErrors.email}
                 </p>
               )}
@@ -212,7 +214,7 @@ export default function RegisterPage() {
                 className="bg-background"
               />
               {fieldErrors.password && (
-                <p id="password-error" className="text-xs text-destructive">
+                <p id="password-error" className="text-[11px] text-destructive">
                   {fieldErrors.password}
                 </p>
               )}
