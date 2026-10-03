@@ -35,8 +35,8 @@ export async function generateMetadata({
 
   if (!post) {
     return {
-      title: "Article Not Found — Bloggr",
-      description: "The requested article could not be found.",
+      title: "Story Unavailable",
+      description: "This story is unavailable or could not be found.",
     };
   }
 
