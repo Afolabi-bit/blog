@@ -19,13 +19,12 @@ function parseJwtPayload(token: string): JwtClaims | null {
   }
 }
 
-// Routes that can be viewed without authentication
-const PUBLIC_PATHS = ["/", "/post", "/authors"];
+// Routes that require authentication
+const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/settings"];
 const AUTH_ONLY_GUEST_PATHS = ["/login", "/register"];
 
-function isPublicPath(pathname: string): boolean {
-  if (pathname === "/") return true;
-  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 function isAuthGuestPath(pathname: string): boolean {
@@ -44,8 +43,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // Public paths don't require an active token
-  if (isPublicPath(pathname) || isAuthGuestPath(pathname)) {
+  // If path is not protected, allow it (public pages, robots.txt, sitemap.xml, 404s)
+  if (!isProtectedPath(pathname)) {
     return NextResponse.next();
   }
 
