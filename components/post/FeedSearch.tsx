@@ -74,11 +74,11 @@ export function FeedSearch({ initialSearch = "" }: FeedSearchProps) {
         />
         <Input
           id="feed-search-input"
-          type="search"
+          type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search stories, topics, tags..."
-          className="h-10 pl-9 pr-9 bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring text-sm rounded-full shadow-2xs transition-colors"
+          className="h-10 pl-9 pr-9 bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring text-sm rounded-full shadow-2xs transition-colors [&::-webkit-search-cancel-button]:hidden"
           aria-label="Search articles"
         />
         {isPending ? (
