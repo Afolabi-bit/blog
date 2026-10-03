@@ -45,7 +45,7 @@ export async function generateMetadata({
 
   if (!author) {
     return {
-      title: "Author Not Found — Bloggr",
+      title: "Author Profile Unavailable",
       description: "The requested author profile could not be found.",
     };
   }
