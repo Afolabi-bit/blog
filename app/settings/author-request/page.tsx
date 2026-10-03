@@ -443,11 +443,13 @@ export default function AuthorRequestPage() {
               )}
 
               {formError && (
-                <Alert variant="destructive">
-                  <AlertCircle className="size-4" />
-                  <AlertTitle>Application Error</AlertTitle>
-                  <AlertDescription>{formError}</AlertDescription>
-                </Alert>
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[11px] text-destructive"
+                >
+                  <AlertCircle className="mt-px size-3.5 shrink-0" />
+                  <span>{formError}</span>
+                </div>
               )}
 
               <div className="flex flex-col gap-1.5">
