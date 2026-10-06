@@ -99,7 +99,7 @@ export default function SettingsPage() {
         });
 
         if (res.status === "success" && res.data) {
-          toast.success("Profile updated successfully!", { id: toastId });
+          toast.success("Profile updated", { id: toastId });
           setUser(res.data);
           setStoredUser(res.data);
         } else {
@@ -144,7 +144,7 @@ export default function SettingsPage() {
 
         if (res.status === "success") {
           toast.success(
-            "Password changed! Please log in with your new password.",
+            "Password changed. Please sign in again.",
             { id: toastId },
           );
           setOldPassword("");
