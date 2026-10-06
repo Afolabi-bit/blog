@@ -77,8 +77,8 @@ export default async function DashboardPage() {
       </div>
 
       {user.role === "reader" && (
-        <Alert className="border-accent-warm/30 bg-accent-warm/5">
-          <PenTool className="size-4 text-accent-warm" />
+        <Alert className="border-border bg-card">
+          <PenTool className="size-4 text-muted-foreground" />
           <AlertTitle className="text-foreground font-semibold">
             Reader Account
           </AlertTitle>
