@@ -356,7 +356,7 @@ export function PostEditor({ initialPost }: PostEditorProps) {
     try {
       await navigator.clipboard.writeText(content);
       setCopiedMarkdown(true);
-      toast.success("Markdown copied to clipboard!");
+      toast.success("Markdown copied to clipboard");
       setTimeout(() => setCopiedMarkdown(false), 2500);
     } catch {
       toast.error("Failed to copy markdown to clipboard");
@@ -618,10 +618,10 @@ export function PostEditor({ initialPost }: PostEditorProps) {
         <div
           role="region"
           aria-label="Restorable draft notification"
-          className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5 sm:gap-4 rounded-xl border border-accent-solid/30 bg-accent-solid/[0.05] p-3.5 sm:p-4 shadow-xs backdrop-blur-xs transition-all animate-in fade-in duration-200"
+          className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5 sm:gap-4 rounded-xl border border-border bg-muted/30 p-3.5 sm:p-4 shadow-xs backdrop-blur-xs transition-all animate-in fade-in duration-200"
         >
           <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-solid/15 text-accent-solid shadow-2xs">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground shadow-2xs">
               <RotateCcw className="size-4" />
             </div>
             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
