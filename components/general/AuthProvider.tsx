@@ -10,7 +10,14 @@ import {
 } from "react";
 import type { AuthUser } from "@/lib/types";
 import { authEndpoints } from "@/lib/endpoints";
-import { getStoredRefreshToken, getStoredUser, setStoredUser } from "@/lib/client";
+import {
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  getStoredUser,
+  setStoredUser,
+  isTokenExpired,
+  refreshAuthTokens,
+} from "@/lib/client";
 import { toast } from "sonner";
 
 interface AuthContextValue {
@@ -55,6 +62,30 @@ export function AuthProvider({
       }
     }
   }, [initialUser]);
+
+  // Proactively check and refresh token when returning to the tab after idle
+  useEffect(() => {
+    const handleVisibilityOrFocus = async () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        const token = getStoredAccessToken();
+        const refreshToken = getStoredRefreshToken();
+        if (refreshToken && (!token || isTokenExpired(token, 120))) {
+          try {
+            await refreshAuthTokens();
+          } catch {
+            // Background refresh error - interceptor handles fatal failures
+          }
+        }
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+    return () => {
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+    };
+  }, []);
 
   const logout = useCallback(async () => {
     try {
