@@ -52,7 +52,6 @@ import {
   Loader2,
   MessageSquare,
   Search,
-  Sparkles,
   Star,
   Trash2,
   User,
@@ -641,7 +640,7 @@ export default function AdminPage() {
                             variant="outline"
                             className="font-mono text-[10px] uppercase tracking-wider py-0 gap-1 border-accent-solid/40 bg-accent-solid text-white"
                           >
-                            <Sparkles className="size-2.5" />
+                            <Star className="size-2.5 fill-white/40" />
                             <span>Featured</span>
                           </Badge>
                         ) : (
