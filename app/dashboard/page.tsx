@@ -7,7 +7,7 @@ import { AuthorPostList } from "@/components/dashboard/AuthorPostList";
 import { getServerSession, getAccessToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/client";
 import type { Post, ApiResponse, PostsResponse, AuthorStats } from "@/lib/types";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus, PenTool } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -78,7 +78,7 @@ export default async function DashboardPage() {
 
       {user.role === "reader" && (
         <Alert className="border-accent-warm/30 bg-accent-warm/5">
-          <Sparkles className="size-4 text-accent-warm" />
+          <PenTool className="size-4 text-accent-warm" />
           <AlertTitle className="text-foreground font-semibold">
             Reader Account
           </AlertTitle>
