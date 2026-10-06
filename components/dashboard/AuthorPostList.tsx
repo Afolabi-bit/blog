@@ -80,7 +80,7 @@ export function AuthorPostList({ initialPosts, initialStats }: AuthorPostListPro
     try {
       const res = await postsEndpoints.deletePost(postToDelete.id);
       if (res.status === "success") {
-        toast.success("Post deleted successfully", { id: toastId });
+        toast.success("Post deleted", { id: toastId });
         setPosts((prev) => prev.filter((p) => p.id !== postToDelete.id));
       } else {
         toast.error(res.message || "Failed to delete post", { id: toastId });
@@ -238,7 +238,7 @@ export function AuthorPostList({ initialPosts, initialStats }: AuthorPostListPro
           {filteredPosts.map((post) => (
             <Card
               key={post.id}
-              className="flex flex-col justify-between overflow-hidden border border-border bg-card shadow-2xs transition-all hover:border-accent-solid/35 hover:shadow-xs"
+              className="flex flex-col justify-between overflow-hidden border border-border bg-card shadow-2xs transition-all hover:border-foreground/25 hover:shadow-xs"
             >
               <div>
                 <div className="relative h-44 w-full overflow-hidden bg-muted/40">
