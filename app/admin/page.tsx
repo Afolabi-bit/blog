@@ -187,8 +187,8 @@ export default function AdminPage() {
       if (res.status === "success") {
         toast.success(
           status === "approved"
-            ? "Author request approved and role promoted!"
-            : "Author request declined.",
+            ? "Author request approved"
+            : "Author request declined",
           { id: toastId },
         );
         await fetchRequests(requestStatusFilter);
@@ -200,7 +200,7 @@ export default function AdminPage() {
       if (axios.isAxiosError(err)) {
         const backendMsg = err.response?.data?.message || "";
         if (backendMsg.includes("already been processed")) {
-          toast.info("Request has already been processed by an administrator.", {
+          toast.info("Request has already been processed", {
             id: toastId,
           });
           await fetchRequests(requestStatusFilter);
@@ -232,8 +232,8 @@ export default function AdminPage() {
         );
         toast.success(
           newFeatured
-            ? "Article set as site-wide featured hero!"
-            : "Article removed from featured.",
+            ? "Featured article updated"
+            : "Featured status removed",
           { id: toastId },
         );
       } else {
@@ -266,12 +266,12 @@ export default function AdminPage() {
   const confirmDeletePost = async () => {
     if (!postToDelete) return;
     setIsDeleting(true);
-    const toastId = toast.loading("Moderator deleting post…");
+    const toastId = toast.loading("Deleting post…");
 
     try {
       const res = await adminEndpoints.deletePost(postToDelete.id);
       if (res.status === "success") {
-        toast.success("Post removed by administrator", { id: toastId });
+        toast.success("Post removed", { id: toastId });
         setPosts((prev) => prev.filter((p) => p.id !== postToDelete.id));
       } else {
         toast.error(res.message || "Failed to delete post", { id: toastId });
@@ -291,12 +291,12 @@ export default function AdminPage() {
   const confirmDeleteComment = async () => {
     if (!commentToDelete) return;
     setIsDeletingComment(true);
-    const toastId = toast.loading("Moderator deleting comment…");
+    const toastId = toast.loading("Deleting comment…");
 
     try {
       const res = await adminEndpoints.deleteComment(commentToDelete.id);
       if (res.status === "success") {
-        toast.success("Comment removed by administrator", { id: toastId });
+        toast.success("Comment removed", { id: toastId });
         setComments((prev) => prev.filter((c) => c.id !== commentToDelete.id));
       } else {
         toast.error(res.message || "Failed to delete comment", { id: toastId });
