@@ -9,7 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ColdStartNotice } from "@/components/general/ColdStartNotice";
 import { OfflineBanner } from "@/components/general/OfflineBanner";
 import { getServerSession } from "@/lib/auth";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://bloggr.dev"),
@@ -83,7 +83,7 @@ export default async function RootLayout({
                   <Footer />
                 </div>
                 <ColdStartNotice />
-                <Toaster position="top-right" richColors />
+                <Toaster position="bottom-right" />
               </AuthProvider>
             </TooltipProvider>
           </ThemeProvider>
