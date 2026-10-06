@@ -28,7 +28,7 @@ export function FeaturedPostHero({ post }: FeaturedPostHeroProps) {
     : "AU";
 
   return (
-    <article className="group relative mb-12 overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-all hover:border-accent-solid/35 hover:shadow-md">
+    <article className="group relative mb-12 overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-all hover:border-foreground/25 hover:shadow-md">
       <div className="grid grid-cols-1 lg:grid-cols-12">
         {/* Cover image container */}
         <div className="relative min-h-[260px] overflow-hidden bg-muted/40 sm:min-h-[340px] lg:col-span-7">
