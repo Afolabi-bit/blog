@@ -34,7 +34,25 @@ export function unwrap<T>(response: AxiosResponse<ApiResponse<T>>): T {
 
 // ─── Token Management Helpers ────────────────────────────────────────────────
 // Kept in localStorage for client persistence and synced to document.cookie
-// so Next.js Middleware can read access_token for edge route protection.
+// so Next.js Middleware can read tokens for edge route protection.
+
+export function parseJwtPayload(token: string): { exp?: number; role?: string; sub?: string; email?: string } | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = atob(base64);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+export function isTokenExpired(token: string, skewSeconds: number = 60): boolean {
+  const payload = parseJwtPayload(token);
+  if (!payload || !payload.exp) return true;
+  return payload.exp * 1000 - skewSeconds * 1000 <= Date.now();
+}
 
 export function getStoredAccessToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -51,9 +69,15 @@ export function setStoredTokens(accessToken: string, refreshToken: string) {
   localStorage.setItem("access_token", accessToken);
   localStorage.setItem("refresh_token", refreshToken);
 
-  // Sync to document.cookie for Next.js middleware (15 min access, 7 days refresh)
-  document.cookie = `access_token=${accessToken}; path=/; max-age=${60 * 15}; SameSite=Lax`;
-  document.cookie = `refresh_token=${refreshToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  const isSecure = window.location.protocol === "https:";
+  const secureFlag = isSecure ? "; Secure" : "";
+
+  // Set cookies to 7 days (604,800s) to match full session lifetime.
+  // Middleware inspects the JWT payload exp to determine when access token
+  // needs to be refreshed via refresh_token, preventing premature cookie eviction.
+  const maxAge = 60 * 60 * 24 * 7;
+  document.cookie = `access_token=${accessToken}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`;
+  document.cookie = `refresh_token=${refreshToken}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`;
 }
 
 export function clearStoredTokens() {
@@ -62,9 +86,12 @@ export function clearStoredTokens() {
   localStorage.removeItem("refresh_token");
   localStorage.removeItem("auth_user");
 
+  const isSecure = window.location.protocol === "https:";
+  const secureFlag = isSecure ? "; Secure" : "";
+
   // Expire cookies
-  document.cookie = `access_token=; path=/; max-age=0; SameSite=Lax`;
-  document.cookie = `refresh_token=; path=/; max-age=0; SameSite=Lax`;
+  document.cookie = `access_token=; path=/; max-age=0; SameSite=Lax${secureFlag}`;
+  document.cookie = `refresh_token=; path=/; max-age=0; SameSite=Lax${secureFlag}`;
 }
 
 export function getStoredUser(): AuthUser | null {
@@ -127,13 +154,47 @@ apiClient.interceptors.request.use((config: CustomConfig) => {
   return config;
 });
 
+// ─── Direct Refresh Helper ───────────────────────────────────────────────────
+
+export async function refreshAuthTokens(): Promise<{ token: string; refreshToken: string } | null> {
+  const refreshToken = getStoredRefreshToken();
+  if (!refreshToken) {
+    return null;
+  }
+
+  // 45-second timeout to survive Render free-tier cold-start wake-up
+  const { data } = await axios.post(
+    `${API_BASE_URL}/auth/refresh`,
+    { refresh_token: refreshToken },
+    {
+      headers: { "Content-Type": "application/json" },
+      timeout: 45000,
+    },
+  );
+
+  const newAccessToken = data.data?.token || data.token;
+  const newRefreshToken =
+    data.data?.refresh_token || data.refresh_token || refreshToken;
+
+  if (!newAccessToken) {
+    throw new Error("Invalid token refresh response");
+  }
+
+  setStoredTokens(newAccessToken, newRefreshToken);
+  if (data.data?.user) {
+    setStoredUser(data.data.user);
+  }
+
+  return { token: newAccessToken, refreshToken: newRefreshToken };
+}
+
 // ─── Response Interceptor (Silent Refresh on 401 & Cold Start Clear) ──────────
 
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (value: AxiosResponse) => void;
   reject: (reason: unknown) => void;
-  config: InternalAxiosRequestConfig;
+  config: CustomConfig;
 }> = [];
 
 function clearColdStart(config?: CustomConfig) {
@@ -181,48 +242,49 @@ apiClient.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const refreshToken = getStoredRefreshToken();
-      if (!refreshToken) {
-        throw new Error("No refresh token available");
-      }
-
-      // Call Go backend /auth/refresh directly
-      const { data } = await axios.post(
-        `${API_BASE_URL}/auth/refresh`,
-        { refresh_token: refreshToken },
-        { headers: { "Content-Type": "application/json" } },
-      );
-
-      const newAccessToken = data.data?.token || data.token;
-      const newRefreshToken =
-        data.data?.refresh_token || data.refresh_token || refreshToken;
-
-      if (!newAccessToken) {
-        throw new Error("Invalid token refresh response");
-      }
-
-      setStoredTokens(newAccessToken, newRefreshToken);
-      if (data.data?.user) {
-        setStoredUser(data.data.user);
+      const refreshed = await refreshAuthTokens();
+      if (!refreshed) {
+        throw new ApiError(401, "No refresh token available");
       }
 
       // Replay failed requests
       const queued = [...failedQueue];
       failedQueue = [];
       queued.forEach(({ resolve, reject, config }) => {
-        config.headers.Authorization = `Bearer ${newAccessToken}`;
+        config._retry = true;
+        if (config.headers?.set) {
+          config.headers.set("Authorization", `Bearer ${refreshed.token}`);
+        } else if (config.headers) {
+          config.headers.Authorization = `Bearer ${refreshed.token}`;
+        }
         apiClient(config).then(resolve).catch(reject);
       });
 
-      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+      if (originalRequest.headers?.set) {
+        originalRequest.headers.set("Authorization", `Bearer ${refreshed.token}`);
+      } else if (originalRequest.headers) {
+        originalRequest.headers.Authorization = `Bearer ${refreshed.token}`;
+      }
       return apiClient(originalRequest);
-    } catch (refreshErr) {
+    } catch (refreshErr: unknown) {
       failedQueue.forEach(({ reject }) => reject(refreshErr));
       failedQueue = [];
-      clearStoredTokens();
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
+
+      // ONLY clear tokens and redirect if the refresh token was explicitly rejected (401/403 or missing).
+      // NEVER wipe credentials on Render cold-start timeouts (502/504) or transient offline/network glitches!
+      const isExplicitAuthFailure =
+        (axios.isAxiosError(refreshErr) &&
+          (refreshErr.response?.status === 401 || refreshErr.response?.status === 403)) ||
+        (refreshErr instanceof ApiError && refreshErr.status === 401) ||
+        (refreshErr instanceof Error && refreshErr.message === "No refresh token available");
+
+      if (isExplicitAuthFailure) {
+        clearStoredTokens();
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
       }
+
       return Promise.reject(refreshErr);
     } finally {
       isRefreshing = false;
