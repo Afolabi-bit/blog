@@ -92,7 +92,7 @@ export function AuthProvider({
       const refreshToken = getStoredRefreshToken();
       await authEndpoints.logout(refreshToken || undefined);
       setUser(null);
-      toast.success("Logged out successfully");
+      toast.success("Signed out");
       window.location.href = "/login";
     } catch {
       window.location.href = "/login";
