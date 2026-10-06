@@ -24,10 +24,10 @@ Before starting:
 
 ## 1. Article Reader & Scrolling
 
-| #   | Action                      | Expected result                                                            | Severity | Status  |
-| --- | --------------------------- | -------------------------------------------------------------------------- | -------- | ------- |
-| A5  | Scroll through long article | ArticleActionBar stays sticky (sidebar on desktop / bottom bar on mobile)   | 🟡       | Pending |
-| N3  | Scroll down any page        | Navbar hides smoothly on scroll-down; reveals on scroll-up                 | 🟡       | Pending |
+| #   | Action                      | Expected result                                                           | Severity | Status  |
+| --- | --------------------------- | ------------------------------------------------------------------------- | -------- | ------- |
+| A5  | Scroll through long article | ArticleActionBar stays sticky (sidebar on desktop / bottom bar on mobile) | 🟡       | Pending |
+| N3  | Scroll down any page        | Navbar hides smoothly on scroll-down; reveals on scroll-up                | 🟡       | Pending |
 
 ---
 
@@ -37,8 +37,8 @@ Log in as a user and visit any published post (e.g. `/post/daves-architectural-i
 
 | #   | Action                         | Expected result                                                            | Severity | Status  |
 | --- | ------------------------------ | -------------------------------------------------------------------------- | -------- | ------- |
-| C4  | Submit valid comment           | Comment appears in list; comment count increments                          | 🔴       | Pending |
-| C8  | Submit a reply to a comment    | Reply appears nested under parent comment                                  | 🔴       | Pending |
+| C4  | Submit valid comment           | Comment appears in list; comment count increments                          | 🔴       | Done    |
+| C8  | Submit a reply to a comment    | Reply appears nested under parent comment                                  | 🔴       | Done    |
 | C11 | Delete as post author or admin | Delete button visible on other users' comments; confirming removes comment | 🟡       | Pending |
 
 ---
@@ -47,30 +47,34 @@ Log in as a user and visit any published post (e.g. `/post/daves-architectural-i
 
 ### 3.1 Author Dashboard (`/dashboard`)
 
-| #   | Action                       | Expected result                                           | Severity | Status  |
-| --- | ---------------------------- | --------------------------------------------------------- | -------- | ------- |
-| D2  | Visit `/dashboard` as author | Dashboard loads with real author stats grid and post list | 🔴       | Pending |
+| #   | Action                       | Expected result                                           | Severity | Status |
+| --- | ---------------------------- | --------------------------------------------------------- | -------- | ------ |
+| D2  | Visit `/dashboard` as author | Dashboard loads with real author stats grid and post list | 🔴       | Done   |
 
 ### 3.2 Editor Interactions & Shortcuts (`/dashboard/create`)
 
-| #   | Action                            | Expected result                                                | Severity | Status  |
-| --- | --------------------------------- | -------------------------------------------------------------- | -------- | ------- |
-| E5  | Select text, click Bold           | Text becomes bold; button shows `aria-pressed="true"`          | 🔴       | Pending |
-| E6  | Press `Ctrl+B`                    | Bold toggles on/off                                            | 🔴       | Pending |
-| E7  | Press `Ctrl+I`                    | Italic toggles on/off                                          | 🔴       | Pending |
-| E8  | Press `Ctrl+K`                    | Link dialog opens with accessible title "Add link"             | 🔴       | Pending |
-| E10 | Enter valid URL, click "Add link" | Link inserted; "Remove link" removes it                        | 🟡       | Pending |
-| E11 | Select text in editor             | Floating BubbleMenu appears with Bold/Italic/Link buttons       | 🟡       | Pending |
-| E31 | Edit existing published post      | Post loads in `/dashboard/edit/[id]` with content, tags, cover | 🔴       | Pending |
+| #   | Action                            | Expected result                                                | Severity | Status                                                                              |
+| --- | --------------------------------- | -------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------- |
+| E5  | Select text, click Bold           | Text becomes bold; button shows `aria-pressed="true"`          | 🔴       | Done                                                                                |
+| E6  | Press `Ctrl+B`                    | Bold toggles on/off                                            | 🔴       | Done                                                                                |
+| E7  | Press `Ctrl+I`                    | Italic toggles on/off                                          | 🔴       | Done                                                                                |
+| E8  | Press `Ctrl+K`                    | Link dialog opens with accessible title "Add link"             | 🔴       | Done (works in visual & source modes; pre-fills URL when editing)                   |
+| E10 | Enter valid URL, click "Add link" | Link inserted; "Remove link" removes it                        | 🟡       | Done (clicking link brings up floating menu with preview, Edit, and Remove options) |
+| E11 | Select text in editor             | Floating BubbleMenu appears with Bold/Italic/Link buttons      | 🟡       | Working                                                                             |
+| E31 | Edit existing published post      | Post loads in `/dashboard/edit/[id]` with content, tags, cover | 🔴       | Done                                                                                |
+
+FIX:
+
+- [x] **Pinned Toolbar & Fixed Editor Height**: The toolbar pane is pinned to the top of the editor card (`shrink-0 flex-wrap`). The editor container has a fixed height (`h-[650px] min-h-[480px] max-h-[85vh]`) with internal content scrolling (`flex-1 min-h-0 overflow-y-auto`), keeping the toolbar visible and easily accessible at all times regardless of document length. Preview and split modes match this height and scrolling structure.
 
 ---
 
 ## 4. Settings (`/settings`)
 
-| #   | Action                                     | Expected result                                 | Severity | Status  |
-| --- | ------------------------------------------ | ----------------------------------------------- | -------- | ------- |
-| S6  | Update bio and click "Save Changes"        | Success toast; new bio persists on page refresh | 🔴       | Pending |
-| S10 | Enter correct current + valid new password | Password changed successfully with feedback     | 🔴       | Pending |
+| #   | Action                                     | Expected result                                 | Severity | Status |
+| --- | ------------------------------------------ | ----------------------------------------------- | -------- | ------ |
+| S6  | Update bio and click "Save Changes"        | Success toast; new bio persists on page refresh | 🔴       | Done   |
+| S10 | Enter correct current + valid new password | Password changed successfully with feedback     | 🔴       | Done   |
 
 ---
 
@@ -78,15 +82,15 @@ Log in as a user and visit any published post (e.g. `/post/daves-architectural-i
 
 Log in as **Admin**:
 
-| #    | Action                                     | Expected result                                                                                      | Severity | Status  |
-| ---- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------- | -------- | ------- |
-| AD6  | Feature toggle — no existing featured post | Post becomes featured; toggle switches to active                                                     | 🔴       | Pending |
-| AD8  | Confirm replace featured                   | AlertDialog appears ("This will replace current featured post"); confirming swaps the featured post  | 🔴       | Pending |
-| AD10 | Confirm delete post                        | Danger AlertDialog appears; confirming removes post from table                                       | 🔴       | Pending |
-| AD13 | Delete a comment in Comments tab           | Danger AlertDialog appears; confirming removes comment                                               | 🔴       | Pending |
-| AD16 | Click "Approve" on Author Application      | Application status updates to approved; success toast                                                | 🔴       | Pending |
-| AD17 | Click "Reject" with a reason               | Review notes saved in API payload; application rejected                                              | 🔴       | Pending |
-| AD18 | Click "Reject" without a reason            | Rejection succeeds even if review notes are left blank                                               | 🟡       | Pending |
+| #    | Action                                     | Expected result                                                                                     | Severity | Status               |
+| ---- | ------------------------------------------ | --------------------------------------------------------------------------------------------------- | -------- | -------------------- |
+| AD6  | Feature toggle — no existing featured post | Post becomes featured; toggle switches to active                                                    | 🔴       | Done                 |
+| AD8  | Confirm replace featured                   | AlertDialog appears ("This will replace current featured post"); confirming swaps the featured post | 🔴       | Done                 |
+| AD10 | Confirm delete post                        | Danger AlertDialog appears; confirming removes post from table                                      | 🔴       | Done                 |
+| AD13 | Delete a comment in Comments tab           | Danger AlertDialog appears; confirming removes comment                                              | 🔴       | Failed with code 404 |
+| AD16 | Click "Approve" on Author Application      | Application status updates to approved; success toast                                               | 🔴       | Done                 |
+| AD17 | Click "Reject" with a reason               | Review notes saved in API payload; application rejected                                             | 🔴       | Pending              |
+| AD18 | Click "Reject" without a reason            | Rejection succeeds even if review notes are left blank                                              | 🟡       | Pending              |
 
 ---
 
@@ -121,7 +125,9 @@ Verify layout across viewports:
 ## 8. Accessibility Deep-Dive
 
 ### 8.1 Keyboard-Only Navigation
+
 Navigate using only `Tab`, `Shift+Tab`, `Enter`, `Space`, and `Escape`:
+
 - [ ] **K1**: Home: click "Load more", filter by tag, search, open a post
 - [ ] **K2**: Post reader: like, write a comment, reply to a comment, dismiss reply
 - [ ] **K3**: Login form: fill in and submit
@@ -131,7 +137,9 @@ Navigate using only `Tab`, `Shift+Tab`, `Enter`, `Space`, and `Escape`:
 - [ ] **K7**: Admin: navigate tabs, open review Sheet, close with Escape
 
 ### 8.2 Screen Reader — NVDA on Windows
+
 Turn on NVDA (`Ctrl+Alt+N`) and verify speech announcements:
+
 - [ ] **SR1**: Like button (unliked) announces `"Like post, button"`
 - [ ] **SR2**: Like button (liked) announces `"Unlike post, button, pressed"`
 - [ ] **SR3**: Autosave saving state announces `"Saving…"` without losing editor focus
@@ -142,7 +150,9 @@ Turn on NVDA (`Ctrl+Alt+N`) and verify speech announcements:
 - [ ] **SR8**: AlertDialog announcements read title and description before action buttons
 
 ### 8.3 Reduced Motion
+
 In Windows Settings → Accessibility → Visual effects → turn **Animation effects OFF**:
+
 - [ ] **RM1**: Feed card hover: no scale/bounce animation
 - [ ] **RM2**: Navbar hide/show: instant, no slide
 - [ ] **RM3**: FeaturedPostHero: no entrance animation
@@ -167,18 +177,19 @@ Run Chrome DevTools → Lighthouse in incognito (Mobile preset):
 
 ```markdown
 ### Bug [B-###]
+
 **Test ID:** (e.g. C4)
 **Severity:** 🔴 BLOCKER / 🟡 MAJOR / 🟢 MINOR
 **Page/Route:**
 **User role:** Reader / Author / Admin / Unauthenticated
 **Steps to reproduce:**
-  1.
-  2.
-  3.
-**Expected:**
-**Actual:**
-**Screenshot/Video:**
-**Browser + OS:**
+
+1.
+2.
+3. **Expected:**
+   **Actual:**
+   **Screenshot/Video:**
+   **Browser + OS:**
 ```
 
 ---
