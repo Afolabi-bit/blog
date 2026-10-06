@@ -260,7 +260,7 @@ export function TiptapEditor({
     }
 
     setIsUploadingImage(true);
-    const toastId = toast.loading("Uploading image to storage…");
+    const toastId = toast.loading("Uploading image…");
     try {
       const res = await mediaEndpoints.upload(file);
       if (res.status === "success" && res.data?.url) {
@@ -274,7 +274,7 @@ export function TiptapEditor({
             })
             .run();
         }
-        toast.success("Image uploaded and inserted!", { id: toastId });
+        toast.success("Image inserted", { id: toastId });
         setImageUrl("");
         setImageAlt("");
         setImageDialogOpen(false);
@@ -961,7 +961,7 @@ export function TiptapEditor({
               {/* File upload dropzone */}
               <div
                 onClick={() => !isUploadingImage && imageFileInputRef.current?.click()}
-                className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-border rounded-xl hover:border-accent-solid/50 cursor-pointer bg-muted/20 transition-colors"
+                className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-border rounded-xl hover:border-foreground/30 cursor-pointer bg-muted/20 transition-colors"
               >
                 <input
                   ref={imageFileInputRef}
