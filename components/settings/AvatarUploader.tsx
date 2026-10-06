@@ -40,13 +40,13 @@ export function AvatarUploader({
     }
 
     setIsUploading(true);
-    const toastId = toast.loading("Uploading avatar image…");
+    const toastId = toast.loading("Uploading avatar…");
 
     try {
       const res = await mediaEndpoints.upload(file);
       if (res.status === "success" && res.data?.url) {
         onChange(res.data.url);
-        toast.success("Avatar uploaded successfully!", { id: toastId });
+        toast.success("Avatar uploaded", { id: toastId });
       } else {
         toast.error(res.message || "Failed to upload avatar", { id: toastId });
       }
@@ -111,8 +111,8 @@ export function AvatarUploader({
           onClick={() => !disabled && !isUploading && fileInputRef.current?.click()}
           className={`group relative flex size-20 sm:size-24 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 transition-all ${
             isDragOver
-              ? "border-accent-solid bg-accent-solid/10"
-              : "border-border bg-muted hover:border-accent-solid/50"
+              ? "border-primary bg-primary/10"
+              : "border-border bg-muted hover:border-foreground/30"
           }`}
           title="Click or drag to upload avatar"
           role="button"
