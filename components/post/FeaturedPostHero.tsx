@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { calculateReadingTime, formatDate, stripMarkdown } from "@/lib/utils";
-import { ArrowRight, BookOpen, Heart, MessageSquare, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, Heart, MessageSquare, Star } from "lucide-react";
 
 interface FeaturedPostHeroProps {
   post: Post;
@@ -53,7 +53,7 @@ export function FeaturedPostHero({ post }: FeaturedPostHeroProps) {
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-1 rounded-full bg-accent-solid/10 px-2.5 py-0.5 text-xs font-semibold text-accent-solid">
-                <Sparkles className="size-3" />
+                <Star className="size-3 fill-accent-solid/30" />
                 Featured Story
               </span>
 
