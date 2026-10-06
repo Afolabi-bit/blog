@@ -35,7 +35,7 @@ import {
 import { AvatarUploader } from "@/components/settings/AvatarUploader";
 import { API_BASE_URL } from "@/lib/client";
 import Link from "next/link";
-import { ArrowRight, Loader2, Lock, LogOut, Save, User as UserIcon, Shield, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, Lock, LogOut, Save, User as UserIcon, Shield, PenTool } from "lucide-react";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -214,7 +214,7 @@ export default function SettingsPage() {
               value="author-request"
               className="gap-2 text-xs font-semibold"
             >
-              <Sparkles className="size-3.5" />
+              <PenTool className="size-3.5" />
               <span>Author Request</span>
             </TabsTrigger>
           )}
@@ -473,7 +473,7 @@ export default function SettingsPage() {
             <Card className="border-border bg-card">
               <CardHeader>
                 <CardTitle className="font-serif text-xl font-bold flex items-center gap-2">
-                  <Sparkles className="size-5 text-accent-warm" />
+                  <PenTool className="size-5 text-accent-warm" />
                   <span>Author Privileges</span>
                 </CardTitle>
                 <CardDescription>
