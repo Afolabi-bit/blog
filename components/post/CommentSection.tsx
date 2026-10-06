@@ -267,7 +267,7 @@ export function CommentSection({ postId, postAuthorId }: CommentSectionProps) {
         key={comment.id}
         className={`group rounded-xl border border-border bg-card p-4 transition-colors ${
           isReply
-            ? "ml-3 sm:ml-6 mt-3 border-l-2 border-l-accent-solid/60 bg-muted/20"
+            ? "ml-3 sm:ml-6 mt-3 bg-muted/25"
             : "mb-4"
         }`}
       >
