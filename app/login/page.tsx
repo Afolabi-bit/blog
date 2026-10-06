@@ -70,7 +70,7 @@ export default function LoginPage() {
         if (user) {
           setUser(user);
         }
-        toast.success(response.message || "Signed in successfully");
+        toast.success("Signed in");
         router.push(redirect);
         router.refresh();
       } catch (err: unknown) {
@@ -85,7 +85,6 @@ export default function LoginPage() {
           msg = err.message;
         }
         setFormError(msg);
-        toast.error(msg);
       }
     });
   }
