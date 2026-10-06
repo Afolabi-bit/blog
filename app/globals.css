@@ -272,7 +272,7 @@
 .prose-bloggr blockquote {
   margin-top: 1.5rem;
   margin-bottom: 1.5rem;
-  border-left: 4px solid var(--accent-solid);
+  border-left: 2px solid var(--border);
   padding: 0.25rem 0 0.25rem 1.25rem;
   font-style: italic;
   color: var(--muted-foreground);
