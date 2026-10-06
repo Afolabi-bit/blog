@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, useCallback } from "react";
+import { useState, useEffect, useTransition, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
@@ -94,6 +94,21 @@ export function PostEditor({ initialPost }: PostEditorProps) {
   const [hasRestorableDraft, setHasRestorableDraft] = useState(false);
   const [restorableDraftData, setRestorableDraftData] = useState<AutosaveDraft | null>(null);
 
+  // Backend draft autosave tracking (based on sizeable content changes)
+  const savedPostIdRef = useRef<string | null>(initialPost?.id || null);
+  const isSavingBackendRef = useRef(false);
+  const lastBackendSavedSnapshotRef = useRef<{
+    title: string;
+    content: string;
+    coverImage: string;
+    tags: string[];
+  }>({
+    title: initialPost?.title?.trim() || "",
+    content: initialPost?.content?.trim() || "",
+    coverImage: initialPost?.cover_image || "",
+    tags: initialPost?.tags || [],
+  });
+
   // Detect legacy HTML posts
   const isLegacyHtml = initialPost?.content
     ? /<p>|<div|<span|<h[1-6]|<br\s*\/?>/i.test(initialPost.content)
@@ -162,16 +177,103 @@ export function PostEditor({ initialPost }: PostEditorProps) {
       .catch(() => {});
   }, []);
 
-  // Debounced autosave (2s per M3.2 plan)
-  useEffect(() => {
-    if (!isDirty || (!title.trim() && !content.trim())) {
-      setAutosaveStatus("idle");
+  // Determines if the user has made a sizeable content or metadata change since last backend save
+  const hasSizeableChange = useCallback(() => {
+    const last = lastBackendSavedSnapshotRef.current;
+    const trimmedTitle = title.trim();
+    const trimmedContent = content.trim();
+
+    // 1. Initial draft creation: when post has not yet been saved to backend,
+    // trigger as soon as it meets minimum post requirements
+    if (!last.title && !last.content) {
+      return trimmedTitle.length >= 5 && trimmedContent.length >= 20;
+    }
+
+    // 2. Metadata changes (title, cover image, or tags modified)
+    if (trimmedTitle !== last.title) return true;
+    if ((coverImage || "") !== last.coverImage) return true;
+    if (tags.join(",") !== last.tags.join(",")) return true;
+
+    // 3. Sizeable character delta in content (>= 40 characters added or removed, ~8-10 words / sentence)
+    const charDelta = Math.abs(trimmedContent.length - last.content.length);
+    if (charDelta >= 40) return true;
+
+    // 4. Structural content change: paragraph, heading, list, or block added/removed
+    const currentBlocks = trimmedContent.split(/\n+/).filter(Boolean).length;
+    const lastBlocks = last.content.split(/\n+/).filter(Boolean).length;
+    if (Math.abs(currentBlocks - lastBlocks) >= 1) return true;
+
+    return false;
+  }, [title, content, coverImage, tags]);
+
+  // Save draft to backend function
+  const saveDraftToBackend = useCallback(async () => {
+    const trimmedTitle = title.trim();
+    const trimmedContent = content.trim();
+
+    // Must satisfy minimum viable post requirements for backend schema
+    if (trimmedTitle.length < 5 || trimmedContent.length < 20) {
       return;
     }
 
-    setAutosaveStatus("unsaved");
+    if (!hasSizeableChange() || isSavingBackendRef.current) {
+      return;
+    }
+
+    isSavingBackendRef.current = true;
+    setAutosaveStatus("saving");
+
+    try {
+      const draftStatus: "draft" | "published" = initialPost?.status === "published" ? "published" : "draft";
+      const targetId = isEditing && initialPost ? initialPost.id : savedPostIdRef.current;
+
+      if (targetId) {
+        await postsEndpoints.updatePost(targetId, {
+          title: trimmedTitle,
+          content: trimmedContent,
+          cover_image: coverImage || undefined,
+          status: draftStatus,
+          tags,
+        });
+      } else {
+        const res = await postsEndpoints.createPost({
+          title: trimmedTitle,
+          content: trimmedContent,
+          cover_image: coverImage || undefined,
+          status: "draft",
+          tags,
+        });
+        if (res.data?.id) {
+          savedPostIdRef.current = res.data.id;
+        }
+      }
+
+      lastBackendSavedSnapshotRef.current = {
+        title: trimmedTitle,
+        content: trimmedContent,
+        coverImage: coverImage || "",
+        tags: [...tags],
+      };
+      setAutosaveStatus("saved");
+      setLastSavedAt(new Date());
+    } catch (err: unknown) {
+      // Background autosave failure: preserve local backup without disruptive error modal
+      if (axios.isAxiosError(err) && err.response?.status === 403) {
+        setForbiddenError(true);
+      }
+      setAutosaveStatus("unsaved");
+    } finally {
+      isSavingBackendRef.current = false;
+    }
+  }, [title, content, coverImage, tags, isEditing, initialPost, hasSizeableChange]);
+
+  // Immediate local backup in localStorage (1.5s debounce for local resilience)
+  useEffect(() => {
+    if (!isDirty || (!title.trim() && !content.trim())) {
+      return;
+    }
+
     const timer = setTimeout(() => {
-      setAutosaveStatus("saving");
       try {
         const draft: AutosaveDraft = {
           title,
@@ -181,15 +283,33 @@ export function PostEditor({ initialPost }: PostEditorProps) {
           timestamp: Date.now(),
         };
         localStorage.setItem(draftKey, JSON.stringify(draft));
-        setAutosaveStatus("saved");
-        setLastSavedAt(new Date());
       } catch {
-        setAutosaveStatus("idle");
+        // ignore
       }
-    }, 2000);
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, [title, content, coverImage, tags, draftKey, isDirty]);
+
+  // Backend draft autosave: triggers ONLY upon sizeable content changes after typing pauses (no interval polling)
+  useEffect(() => {
+    if (!isDirty || !title.trim() || !content.trim()) {
+      if (!isDirty) setAutosaveStatus("idle");
+      return;
+    }
+
+    // Only save when a sizeable content change has occurred
+    if (!hasSizeableChange()) {
+      return;
+    }
+
+    setAutosaveStatus("unsaved");
+    const debounceTimer = setTimeout(() => {
+      saveDraftToBackend();
+    }, 2500);
+
+    return () => clearTimeout(debounceTimer);
+  }, [title, content, coverImage, tags, isDirty, hasSizeableChange, saveDraftToBackend]);
 
   const handleRestoreDraft = () => {
     if (!restorableDraftData) return;
@@ -276,8 +396,10 @@ export function PostEditor({ initialPost }: PostEditorProps) {
       const toastId = toast.loading(actionText);
 
       try {
-        if (isEditing && initialPost) {
-          await postsEndpoints.updatePost(initialPost.id, {
+        const targetId = isEditing && initialPost ? initialPost.id : savedPostIdRef.current;
+
+        if (targetId) {
+          await postsEndpoints.updatePost(targetId, {
             title,
             content,
             cover_image: coverImage || undefined,
@@ -287,13 +409,16 @@ export function PostEditor({ initialPost }: PostEditorProps) {
           const toastMsg = finalStatus === "published" ? "Published" : "Draft saved";
           toast.success(toastMsg, { id: toastId });
         } else {
-          await postsEndpoints.createPost({
+          const res = await postsEndpoints.createPost({
             title,
             content,
             cover_image: coverImage || undefined,
             status: finalStatus,
             tags,
           });
+          if (res.data?.id) {
+            savedPostIdRef.current = res.data.id;
+          }
           const toastMsg = finalStatus === "published" ? "Published" : "Draft saved";
           toast.success(toastMsg, { id: toastId });
         }
@@ -304,6 +429,13 @@ export function PostEditor({ initialPost }: PostEditorProps) {
         } catch {
           // ignore
         }
+
+        lastBackendSavedSnapshotRef.current = {
+          title: title.trim(),
+          content: content.trim(),
+          coverImage: coverImage || "",
+          tags: [...tags],
+        };
 
         router.push("/dashboard");
         router.refresh();
@@ -483,83 +615,116 @@ export function PostEditor({ initialPost }: PostEditorProps) {
 
       {/* Restorable Draft Banner */}
       {hasRestorableDraft && restorableDraftData && (
-        <Alert className="border-accent-solid/30 bg-accent-solid/5">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
-            <div className="flex flex-col gap-0.5">
-              <AlertTitle className="text-foreground font-semibold flex items-center gap-1.5 text-sm">
-                <RotateCcw className="size-4 text-accent-solid" />
-                Unsaved local draft found
-              </AlertTitle>
-              <AlertDescription className="text-muted-foreground text-xs">
-                You have unsaved changes from{" "}
-                {new Date(restorableDraftData.timestamp).toLocaleString([], {
-                  month: "short",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-                . Would you like to restore them?
-              </AlertDescription>
+        <div
+          role="region"
+          aria-label="Restorable draft notification"
+          className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5 sm:gap-4 rounded-xl border border-accent-solid/30 bg-accent-solid/[0.05] p-3.5 sm:p-4 shadow-xs backdrop-blur-xs transition-all animate-in fade-in duration-200"
+        >
+          <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-solid/15 text-accent-solid shadow-2xs">
+              <RotateCcw className="size-4" />
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleDiscardDraft}
-                className="h-7 text-xs gap-1 text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="size-3" />
-                Discard
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleRestoreDraft}
-                className="h-7 text-xs gap-1 bg-accent-solid text-white hover:bg-accent-solid/90"
-              >
-                <RotateCcw className="size-3" />
-                Restore Draft
-              </Button>
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-foreground">
+                  Unsaved local draft found
+                </span>
+                <span className="inline-flex items-center rounded-full bg-accent-solid/15 px-2 py-0.5 text-[11px] font-mono font-medium text-accent-solid">
+                  {new Date(restorableDraftData.timestamp).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                You have unsaved changes from{" "}
+                <span className="font-medium text-foreground">
+                  {new Date(restorableDraftData.timestamp).toLocaleDateString([], {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+                . Would you like to restore them?
+              </p>
             </div>
           </div>
-        </Alert>
+
+          <div className="flex items-center gap-2 shrink-0 sm:self-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDiscardDraft}
+              className="h-8 px-3 text-xs gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/10 transition-colors"
+            >
+              <Trash2 className="size-3.5" />
+              <span>Discard</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleRestoreDraft}
+              className="h-8 px-3.5 text-xs gap-1.5 bg-accent-solid text-white hover:bg-accent-solid/90 shadow-2xs font-medium"
+            >
+              <RotateCcw className="size-3.5" />
+              <span>Restore Draft</span>
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* 403 Permission Denied Mid-session Notice */}
       {forbiddenError && (
-        <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
-          <AlertCircle className="size-4" />
-          <div className="flex flex-col gap-2 w-full">
-            <AlertTitle className="font-semibold">
-              Your session expired. Copy your work before leaving.
-            </AlertTitle>
-            <AlertDescription className="text-xs leading-relaxed">
-              Your session expired or permissions were changed. Your draft has been preserved in session storage. Copy your content before leaving:
-            </AlertDescription>
-            <div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleCopyMarkdown}
-                className="h-7 text-xs gap-1.5"
-              >
-                {copiedMarkdown ? (
-                  <>
-                    <Check className="size-3.5 text-green-600" />
-                    <span>Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="size-3.5" />
-                    <span>Copy content</span>
-                  </>
-                )}
-              </Button>
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3.5 sm:gap-4 rounded-xl border border-destructive/30 bg-destructive/[0.05] p-3.5 sm:p-4 shadow-xs"
+        >
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/15 text-destructive shadow-2xs">
+              <AlertCircle className="size-4" />
+            </div>
+            <div className="flex flex-col gap-1 min-w-0 flex-1">
+              <span className="text-sm font-semibold text-destructive">
+                Your session expired. Copy your work before leaving.
+              </span>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Your session expired or permissions were changed. Your draft has been preserved in session storage. Copy your content before leaving:
+              </p>
             </div>
           </div>
-        </Alert>
+
+          <div className="flex items-center gap-2 shrink-0 sm:self-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCopyMarkdown}
+              className="h-8 px-3 text-xs gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10"
+            >
+              {copiedMarkdown ? (
+                <>
+                  <Check className="size-3.5 text-status-success" />
+                  <span>Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="size-3.5" />
+                  <span>Copy Markdown</span>
+                </>
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/login")}
+              className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Go to Login
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Legacy HTML Post Notice */}
@@ -751,7 +916,7 @@ export function PostEditor({ initialPost }: PostEditorProps) {
           )}
 
           {viewMode === "preview" && (
-            <div className="min-h-[500px] rounded-xl border border-border bg-card p-6 sm:p-8">
+            <div className="h-[650px] min-h-[480px] max-h-[85vh] overflow-y-auto custom-scrollbar rounded-xl border border-border bg-card p-6 sm:p-8">
               {content.trim() ? (
                 <MarkdownRenderer content={content} />
               ) : (
@@ -776,7 +941,7 @@ export function PostEditor({ initialPost }: PostEditorProps) {
                 )}
               </div>
 
-              <div className="min-h-[550px] max-h-[750px] overflow-y-auto rounded-xl border border-border bg-card p-6 sm:p-8">
+              <div className="h-[650px] min-h-[480px] max-h-[85vh] overflow-y-auto custom-scrollbar rounded-xl border border-border bg-card p-6 sm:p-8">
                 {content.trim() ? (
                   <MarkdownRenderer content={content} />
                 ) : (
