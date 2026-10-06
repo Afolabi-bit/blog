@@ -49,6 +49,8 @@ import {
   Code2,
   FileEdit,
   Unlink,
+  Pencil,
+  ExternalLink,
   Image as ImageIcon,
   UploadCloud,
   Loader2,
@@ -77,6 +79,7 @@ export function TiptapEditor({
   const [imageAlt, setImageAlt] = useState("");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const handleOpenLinkDialogRef = useRef<() => void>(() => {});
 
   const editor = useEditor({
     extensions: [
@@ -86,8 +89,9 @@ export function TiptapEditor({
         },
         link: {
           openOnClick: false,
+          enableClickSelection: true,
           HTMLAttributes: {
-            class: "text-accent-solid underline underline-offset-4 hover:opacity-80",
+            class: "text-accent-solid underline underline-offset-4 hover:opacity-80 cursor-pointer",
           },
         },
       }),
@@ -113,9 +117,17 @@ export function TiptapEditor({
     content,
     editable: !disabled,
     editorProps: {
+      handleKeyDown: (_view, event) => {
+        if ((event.ctrlKey || event.metaKey) && (event.key === "k" || event.key === "K")) {
+          event.preventDefault();
+          handleOpenLinkDialogRef.current();
+          return true;
+        }
+        return false;
+      },
       attributes: {
         class:
-          "prose-bloggr min-h-[400px] w-full p-5 focus:outline-hidden sm:p-7 leading-relaxed",
+          "prose-bloggr min-h-full w-full p-5 focus:outline-hidden sm:p-7 leading-relaxed",
         "aria-label": "Rich text article editor canvas",
       },
     },
@@ -127,6 +139,15 @@ export function TiptapEditor({
     },
   });
 
+  const handleOpenLinkDialog = useCallback(() => {
+    if (!editor) return;
+    const previousUrl = editor.getAttributes("link").href || "";
+    setLinkUrl(previousUrl);
+    setLinkDialogOpen(true);
+  }, [editor]);
+
+  handleOpenLinkDialogRef.current = handleOpenLinkDialog;
+
   // Keep editor content in sync when initial content loads or changes externally
   useEffect(() => {
     if (editor && !editor.isFocused && content !== sourceContent) {
@@ -135,16 +156,20 @@ export function TiptapEditor({
     }
   }, [content, editor, sourceContent]);
 
-  // Escape key dismisses active selection / bubble menu
+  // Escape key dismisses active selection / bubble menu; Ctrl+K opens link dialog
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && editor && editor.isFocused) {
         window.getSelection()?.removeAllRanges();
       }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K") && editor && editor.isFocused) {
+        e.preventDefault();
+        handleOpenLinkDialog();
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editor]);
+  }, [editor, handleOpenLinkDialog]);
 
   // Switch between WYSIWYG and Source mode
   const handleToggleSourceMode = useCallback(() => {
@@ -167,13 +192,6 @@ export function TiptapEditor({
     const val = e.target.value;
     setSourceContent(val);
     onChange(val);
-  };
-
-  const handleOpenLinkDialog = () => {
-    if (!editor) return;
-    const previousUrl = editor.getAttributes("link").href || "";
-    setLinkUrl(previousUrl);
-    setLinkDialogOpen(true);
   };
 
   const handleSetLink = (e: React.FormEvent) => {
@@ -283,12 +301,12 @@ export function TiptapEditor({
   }
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-      {/* Editor Toolbar */}
+    <div className="flex flex-col h-[650px] min-h-[480px] max-h-[85vh] overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+      {/* Editor Toolbar - pinned to top */}
       <div
         role="toolbar"
         aria-label="Text formatting"
-        className="flex flex-wrap items-center gap-1 border-b border-border/60 bg-muted/40 p-2 sm:gap-1.5 max-sm:fixed max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:z-40 max-sm:border-t max-sm:border-border max-sm:bg-background/95 max-sm:backdrop-blur-md max-sm:p-2 max-sm:shadow-lg max-sm:overflow-x-auto max-sm:flex-nowrap"
+        className="shrink-0 flex flex-wrap items-center gap-1 border-b border-border/60 bg-muted/50 p-2 sm:gap-1.5 max-sm:fixed max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:z-40 max-sm:border-t max-sm:border-border max-sm:bg-background/95 max-sm:backdrop-blur-md max-sm:p-2 max-sm:shadow-lg max-sm:overflow-x-auto max-sm:scrollbar-none max-sm:flex-nowrap"
       >
         {/* Mode Switcher */}
         <div className="flex items-center rounded-md border border-border bg-background p-0.5 mr-1 shadow-2xs">
@@ -725,16 +743,70 @@ export function TiptapEditor({
       </div>
 
       {/* Editor Surface */}
-      <div className="relative flex-1 bg-background">
+      <div
+        className="relative flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-background"
+        onScroll={() => {
+          if (editor && !editor.isDestroyed) {
+            editor.view.dispatch(editor.state.tr.setMeta("bubbleMenu", "updatePosition"));
+          }
+        }}
+      >
         {!isSourceMode && editor && (
           <BubbleMenu
             editor={editor}
+            shouldShow={({ editor, state }) => {
+              if (isSourceMode || !editor.isEditable) return false;
+              if (editor.isActive("codeBlock") || editor.isActive("image")) return false;
+              if (editor.isActive("link")) return true;
+              return !state.selection.empty;
+            }}
             className="flex items-center gap-0.5 rounded-lg border border-border bg-popover/95 p-1 shadow-lg text-popover-foreground backdrop-blur-xs"
           >
+            {editor.isActive("link") && (
+              <div className="flex items-center gap-1 px-1.5 py-0.5 border-r border-border/80 mr-1 max-w-[280px]">
+                <a
+                  href={editor.getAttributes("link").href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 max-w-[120px] truncate text-xs font-mono text-accent-solid hover:underline"
+                  title={editor.getAttributes("link").href}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink className="size-3 shrink-0" />
+                  <span className="truncate">{editor.getAttributes("link").href}</span>
+                </a>
+                <Separator orientation="vertical" className="h-3.5 mx-0.5" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={handleOpenLinkDialog}
+                  className="h-6 px-1.5 text-xs text-foreground hover:bg-muted gap-1 font-medium"
+                  title="Edit link URL (Ctrl+K)"
+                >
+                  <Pencil className="size-3" />
+                  <span>Edit</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={handleRemoveLink}
+                  className="h-6 px-1.5 text-xs text-destructive hover:bg-destructive/10 gap-1 font-medium"
+                  title="Remove link"
+                >
+                  <Unlink className="size-3" />
+                  <span>Remove</span>
+                </Button>
+              </div>
+            )}
             <Button
               type="button"
               variant={editor.isActive("bold") ? "secondary" : "ghost"}
               size="sm"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus().toggleBold().run()}
               aria-label="Bold (Ctrl+B)"
               aria-pressed={editor.isActive("bold")}
@@ -746,6 +818,7 @@ export function TiptapEditor({
               type="button"
               variant={editor.isActive("italic") ? "secondary" : "ghost"}
               size="sm"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus().toggleItalic().run()}
               aria-label="Italic (Ctrl+I)"
               aria-pressed={editor.isActive("italic")}
@@ -757,6 +830,7 @@ export function TiptapEditor({
               type="button"
               variant={editor.isActive("strike") ? "secondary" : "ghost"}
               size="sm"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus().toggleStrike().run()}
               aria-label="Strikethrough"
               aria-pressed={editor.isActive("strike")}
@@ -768,6 +842,7 @@ export function TiptapEditor({
               type="button"
               variant={editor.isActive("code") ? "secondary" : "ghost"}
               size="sm"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus().toggleCode().run()}
               aria-label="Inline Code"
               aria-pressed={editor.isActive("code")}
@@ -779,6 +854,7 @@ export function TiptapEditor({
               type="button"
               variant={editor.isActive("link") ? "secondary" : "ghost"}
               size="sm"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={handleOpenLinkDialog}
               aria-label="Link (Ctrl+K)"
               aria-pressed={editor.isActive("link")}
@@ -793,14 +869,24 @@ export function TiptapEditor({
           <Textarea
             value={sourceContent}
             onChange={handleSourceChange}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+                e.preventDefault();
+                handleOpenLinkDialog();
+              }
+            }}
             placeholder={placeholder}
             disabled={disabled}
-            rows={22}
-            className="w-full resize-none font-mono text-sm leading-relaxed p-5 sm:p-7 border-none rounded-none focus-visible:ring-0 bg-transparent min-h-[450px]"
+            className="h-full w-full resize-none font-mono text-sm leading-relaxed p-5 sm:p-7 border-none rounded-none focus-visible:ring-0 bg-transparent overflow-y-auto custom-scrollbar"
             aria-label="Raw Markdown source editor"
           />
         ) : (
-          <EditorContent editor={editor} className="min-h-[450px]" />
+          <div className="min-h-full">
+            <EditorContent
+              editor={editor}
+              className="min-h-full [&>.ProseMirror]:min-h-full [&>.ProseMirror]:p-5 sm:[&>.ProseMirror]:p-7"
+            />
+          </div>
         )}
       </div>
 
@@ -809,9 +895,11 @@ export function TiptapEditor({
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleSetLink}>
             <DialogHeader>
-              <DialogTitle>Add link</DialogTitle>
+              <DialogTitle>{editor?.isActive("link") ? "Edit link" : "Add link"}</DialogTitle>
               <DialogDescription>
-                Enter the destination web URL for this link.
+                {editor?.isActive("link")
+                  ? "Update the destination URL or remove this link."
+                  : "Enter the destination web URL for this link."}
               </DialogDescription>
             </DialogHeader>
 
@@ -850,7 +938,7 @@ export function TiptapEditor({
                   Cancel
                 </Button>
                 <Button type="submit" size="sm" className="bg-accent-solid text-white hover:bg-accent-solid/90">
-                  Add link
+                  {editor?.isActive("link") ? "Save link" : "Add link"}
                 </Button>
               </div>
             </DialogFooter>
