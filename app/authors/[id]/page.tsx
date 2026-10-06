@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
-import { ArrowLeft, BookOpen, Calendar, FileText, Sparkles } from "lucide-react";
+import { ArrowLeft, BookOpen, Calendar, FileText, PenTool } from "lucide-react";
 
 export const revalidate = 120;
 
@@ -134,7 +134,7 @@ export default async function AuthorProfilePage({ params }: AuthorPageProps) {
                 variant="outline"
                 className="bg-accent-solid/10 text-accent-solid border-accent-solid/30 font-mono text-xs capitalize"
               >
-                <Sparkles className="mr-1 size-3" />
+                <PenTool className="mr-1 size-3" />
                 {author.role || "Author"}
               </Badge>
             </div>
