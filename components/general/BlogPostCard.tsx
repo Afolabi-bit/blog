@@ -38,7 +38,7 @@ export function BlogPostCard({
 
   return (
     <Card
-      className={`group flex flex-col overflow-hidden border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent-solid/35 hover:shadow-md ${
+      className={`group flex flex-col overflow-hidden border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-md ${
         isLead ? "sm:col-span-2 lg:col-span-2" : "h-full"
       }`}
     >
