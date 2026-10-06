@@ -73,7 +73,7 @@ export default function RegisterPage() {
         if (user) {
           setUser(user);
         }
-        toast.success(response.message || "Account created successfully!");
+        toast.success("Account created");
         router.push(user?.role === "author" ? "/dashboard" : "/");
         router.refresh();
       } catch (err: unknown) {
@@ -88,7 +88,6 @@ export default function RegisterPage() {
           msg = err.message;
         }
         setFormError(msg);
-        toast.error(msg);
       }
     });
   }
