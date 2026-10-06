@@ -38,13 +38,13 @@ export function CoverUploader({
     }
 
     setIsUploading(true);
-    const toastId = toast.loading("Uploading cover image to storage…");
+    const toastId = toast.loading("Uploading cover image…");
 
     try {
       const res = await mediaEndpoints.upload(file);
       if (res.status === "success" && res.data?.url) {
         onChange(res.data.url);
-        toast.success("Cover image uploaded successfully!", { id: toastId });
+        toast.success("Cover image uploaded", { id: toastId });
       } else {
         toast.error(res.message || "Failed to upload image", { id: toastId });
       }
@@ -143,8 +143,8 @@ export function CoverUploader({
           }}
           className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring ${
             isDragOver
-              ? "border-accent-solid bg-accent-solid/5"
-              : "border-border bg-card/50 hover:bg-card hover:border-accent-solid/40"
+              ? "border-primary bg-primary/5"
+              : "border-border bg-card/50 hover:bg-card hover:border-foreground/30"
           } ${disabled || isUploading ? "opacity-60 cursor-not-allowed" : ""}`}
         >
           <div className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground mb-2">
