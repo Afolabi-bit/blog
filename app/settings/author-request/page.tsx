@@ -8,35 +8,23 @@ import { userEndpoints } from "@/lib/endpoints";
 import { useAuth } from "@/components/general/AuthProvider";
 import { AuthorRequestSchema } from "@/lib/validations";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { AuthorRequest } from "@/lib/types";
 import {
   AlertCircle,
-  ArrowRight,
+  ArrowLeft,
   CheckCircle2,
   Clock,
   ExternalLink,
-  FileCheck,
-  Hourglass,
   Loader2,
   PenSquare,
   Plus,
   RotateCcw,
-  Send,
-  Sparkles,
   Trash2,
-  XCircle,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -75,13 +63,13 @@ export default function AuthorRequestPage() {
     fetchRequestStatus();
   }, []);
 
-  // Cooldown calculation for rejected applications (B13: 7 days)
+  // Cooldown calculation for rejected applications (7 days)
   const rejectionTimestamp =
     request?.status === "rejected"
       ? new Date(request.updated_at || request.created_at).getTime()
       : null;
 
-  const cooldownPeriodMs = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+  const cooldownPeriodMs = 7 * 24 * 60 * 60 * 1000;
   const cooldownEndsAt = rejectionTimestamp
     ? rejectionTimestamp + cooldownPeriodMs
     : 0;
@@ -89,10 +77,9 @@ export default function AuthorRequestPage() {
   const isCooldownActive =
     request?.status === "rejected" && now < cooldownEndsAt;
 
-
   const handleAddLink = () => {
     if (sampleLinks.length >= 3) {
-      toast.info("Maximum 3 portfolio links allowed");
+      toast.info("Maximum 3 links allowed");
       return;
     }
     setSampleLinks([...sampleLinks, ""]);
@@ -138,7 +125,7 @@ export default function AuthorRequestPage() {
     }
 
     startTransition(async () => {
-      const toastId = toast.loading("Submitting author application…");
+      const toastId = toast.loading("Submitting application…");
       try {
         const res = await userEndpoints.applyForAuthor({
           bio: bio.trim(),
@@ -147,7 +134,7 @@ export default function AuthorRequestPage() {
         });
 
         if (res.status === "success" && res.data) {
-          toast.success("Author application submitted successfully!", {
+          toast.success("Application submitted successfully", {
             id: toastId,
           });
           setRequest(res.data);
@@ -169,17 +156,16 @@ export default function AuthorRequestPage() {
 
   if (isAlreadyAuthor) {
     return (
-      <div className="mx-auto max-w-xl py-12 text-center">
-        <Card className="border-border bg-card p-8">
+      <div className="mx-auto max-w-lg py-16 px-4 text-center">
+        <Card className="rounded-2xl border border-border/80 bg-card p-8">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-accent-solid/10 text-accent-solid mb-4">
             <CheckCircle2 className="size-6" />
           </div>
           <h2 className="font-serif text-2xl font-bold text-foreground">
-            You are an approved author.
+            You are an author
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-            You have active publishing privileges on Bloggr. You can create,
-            draft, and publish articles directly from your studio.
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+            You have active publishing privileges on Bloggr. You can create and publish articles directly from your studio.
           </p>
           <div className="mt-6">
             <Button
@@ -199,371 +185,287 @@ export default function AuthorRequestPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-2xl py-10 flex flex-col gap-4">
-        <div className="h-8 w-48 bg-muted rounded-md animate-pulse" />
-        <div className="h-64 bg-card rounded-xl border border-border animate-pulse" />
+      <div className="mx-auto max-w-lg py-12 px-4 flex flex-col gap-4 animate-pulse">
+        <div className="h-6 w-32 bg-muted rounded" />
+        <div className="h-8 w-64 bg-muted rounded" />
+        <div className="h-96 bg-card rounded-2xl border border-border" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl py-6 flex flex-col gap-6">
+    <div className="mx-auto max-w-lg py-10 px-4 flex flex-col gap-6">
+      {/* Back link */}
       <div>
-        <h1 className="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Become an Author
+        <Link
+          href="/settings"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="size-3.5" />
+          <span>Settings</span>
+        </Link>
+      </div>
+
+      {/* Header */}
+      <div className="flex flex-col gap-1.5">
+        <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          {request?.status === "rejected" && !isCooldownActive
+            ? "Reapply for Author Status"
+            : "Author Application"}
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Apply for author privileges to write, draft, and publish articles on
-          Bloggr.
+        <p className="text-sm text-muted-foreground">
+          Tell us about your background and what topics you plan to write about.
         </p>
       </div>
 
       {/* Case 1: Pending Application */}
       {request && request.status === "pending" && (
-        <Card className="border-border bg-card overflow-hidden">
-          <CardHeader className="border-b border-border/50 bg-muted/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileCheck className="size-5 text-accent-solid" />
-                <CardTitle className="font-serif text-lg font-bold">
-                  Application Under Review
-                </CardTitle>
-              </div>
+        <Card className="rounded-2xl border border-border/80 bg-card p-6 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-base text-foreground">
+              Application Under Review
+            </h2>
+            <Badge
+              variant="outline"
+              className="font-mono text-xs uppercase tracking-wider py-0.5 px-2 text-status-warning border-status-warning/40 bg-status-warning/10"
+            >
+              Pending
+            </Badge>
+          </div>
 
-              <Badge
-                variant="outline"
-                className="font-mono text-xs uppercase tracking-wider py-1 px-2.5 font-semibold border-status-warning/40 bg-status-warning/10 text-status-warning flex items-center gap-1"
-              >
-                <Clock className="size-3" />
-                <span>Under Review</span>
-              </Badge>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Your application was submitted on {formatDate(request.created_at)}. We will review it shortly and update your account.
+          </p>
+
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 text-xs flex flex-col gap-3">
+            <div>
+              <span className="font-medium text-foreground">Bio:</span>
+              <p className="text-muted-foreground mt-0.5 whitespace-pre-wrap">
+                {request.bio}
+              </p>
             </div>
-          </CardHeader>
-
-          <CardContent className="p-6 flex flex-col gap-5">
-            <Alert className="border-status-warning/30 bg-status-warning/5">
-              <Clock className="size-4 text-status-warning" />
-              <AlertTitle className="text-foreground font-semibold">
-                Application under review.
-              </AlertTitle>
-              <AlertDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Submitted on {formatDate(request.created_at)}. We&apos;ll notify
-                you by email when a decision is made.
-              </AlertDescription>
-            </Alert>
-
-            <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 p-4 text-xs">
-              <div>
-                <span className="font-semibold text-foreground">
-                  Submitted on:{" "}
-                </span>
-                <span className="text-muted-foreground">
-                  {formatDate(request.created_at)}
-                </span>
-              </div>
-
-              <div>
-                <span className="font-semibold text-foreground">Bio: </span>
-                <p className="mt-1 text-muted-foreground leading-relaxed">
-                  {request.bio}
-                </p>
-              </div>
-
-              <div>
-                <span className="font-semibold text-foreground">
-                  Motivation:{" "}
-                </span>
-                <p className="mt-1 text-muted-foreground leading-relaxed">
-                  {request.motivation}
-                </p>
-              </div>
-
-              {request.sample_links && request.sample_links.length > 0 && (
-                <div>
-                  <span className="font-semibold text-foreground">
-                    Portfolio Links:
-                  </span>
-                  <ul className="mt-1 flex flex-col gap-1 pl-4 list-disc">
-                    {request.sample_links.map((link) => (
-                      <li key={link}>
-                        <a
-                          href={link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent-solid hover:underline items-center gap-1 inline-flex"
-                        >
-                          <span>{link}</span>
-                          <ExternalLink className="size-3" />
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            <div>
+              <span className="font-medium text-foreground">Writing topics:</span>
+              <p className="text-muted-foreground mt-0.5 whitespace-pre-wrap">
+                {request.motivation}
+              </p>
             </div>
-          </CardContent>
+            {request.sample_links && request.sample_links.length > 0 && (
+              <div>
+                <span className="font-medium text-foreground">Links:</span>
+                <ul className="mt-1 flex flex-col gap-1">
+                  {request.sample_links.map((link) => (
+                    <li key={link}>
+                      <a
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent-solid hover:underline inline-flex items-center gap-1"
+                      >
+                        <span className="truncate">{link}</span>
+                        <ExternalLink className="size-3 shrink-0" />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </Card>
       )}
 
-      {/* Case 2: Approved Application */}
-      {request && request.status === "approved" && (
-        <Card className="border-border bg-card p-6 flex flex-col gap-4">
-          <Alert className="border-status-success/30 bg-status-success/5">
-            <CheckCircle2 className="size-4 text-status-success" />
-            <AlertTitle className="text-status-success font-semibold">
-              Application Approved!
-            </AlertTitle>
-            <AlertDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Congratulations! Your author application has been approved. You
-              can now access the Author Studio to write and publish articles.
-            </AlertDescription>
-          </Alert>
-
-          <Button
-            asChild
-            className="w-fit gap-2 bg-accent-solid text-white hover:bg-accent-solid/90"
-          >
-            <Link href="/dashboard">
-              <span>Enter Author Studio</span>
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-        </Card>
-      )}
-
-      {/* Case 3: Rejected Application with 7-day cooldown (B13) */}
+      {/* Case 2: Rejected Application with active cooldown */}
       {request && request.status === "rejected" && isCooldownActive && (
-        <Card className="border-border bg-card overflow-hidden">
-          <CardHeader className="border-b border-border/50 bg-muted/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Hourglass className="size-5 text-status-warning" />
-                <CardTitle className="font-serif text-lg font-bold">
-                  Application Cooldown
-                </CardTitle>
-              </div>
+        <Card className="rounded-2xl border border-border/80 bg-card p-6 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-base text-foreground">
+              Application Status
+            </h2>
+            <Badge
+              variant="outline"
+              className="font-mono text-xs uppercase tracking-wider py-0.5 px-2 text-status-danger border-status-danger/40 bg-status-danger/10"
+            >
+              Declined
+            </Badge>
+          </div>
 
-              <Badge
-                variant="outline"
-                className="font-mono text-xs uppercase tracking-wider py-1 px-2.5 font-semibold border-status-danger/40 bg-status-danger/10 text-status-danger flex items-center gap-1"
-              >
-                <XCircle className="size-3" />
-                <span>Declined</span>
-              </Badge>
+          {request.review_notes && (
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-4 text-xs flex flex-col gap-1">
+              <span className="font-medium text-foreground">Feedback from editors:</span>
+              <p className="text-muted-foreground leading-relaxed">
+                {request.review_notes}
+              </p>
             </div>
-          </CardHeader>
+          )}
 
-          <CardContent className="p-6 flex flex-col gap-5">
-            <Alert variant="destructive">
-              <AlertCircle className="size-4" />
-              <AlertTitle>Application Declined</AlertTitle>
-              <AlertDescription className="text-xs mt-1 leading-relaxed">
-                {request.review_notes ||
-                  request.admin_note ||
-                  "Thank you for your interest. Unfortunately, your application was not approved at this time."}
-              </AlertDescription>
-            </Alert>
+          <div className="flex items-start gap-2.5 text-xs text-muted-foreground pt-1">
+            <Clock className="size-4 shrink-0 text-muted-foreground mt-0.5" />
+            <span>
+              You may submit a new application on{" "}
+              <strong className="text-foreground font-semibold">
+                {new Date(cooldownEndsAt).toLocaleDateString([], {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </strong>
+              .
+            </span>
+          </div>
+        </Card>
+      )}
 
-              {/* Cooldown Notice Banner */}
-              <div className="rounded-xl border border-status-warning/40 bg-status-warning/5 p-4 flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-status-warning font-semibold text-sm">
-                  <Clock className="size-4" />
-                  <span>Cooldown in progress</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Your application was reviewed on{" "}
-                  <span className="font-medium text-foreground">
-                    {formatDate(request.updated_at || request.created_at)}
-                  </span>
-                  . You can reapply on{" "}
-                  <span className="font-semibold text-foreground">
-                    {new Date(cooldownEndsAt).toLocaleDateString([], {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </span>
-                  .
+      {/* Case 3: Fresh Application or Cooldown Elapsed */}
+      {(!request || (request.status === "rejected" && !isCooldownActive)) && (
+        <Card className="rounded-2xl border border-border/80 bg-card p-6 sm:p-7">
+          {request && request.status === "rejected" && (
+            <div className="mb-6 rounded-xl border border-border/60 bg-muted/20 p-4 text-xs flex items-start gap-2.5">
+              <RotateCcw className="size-4 text-accent-solid shrink-0 mt-0.5" />
+              <div className="flex flex-col gap-1">
+                <span className="font-semibold text-foreground">Previous feedback:</span>
+                <p className="text-muted-foreground leading-relaxed">
+                  {request.review_notes || request.admin_note || "You can now submit an updated application."}
                 </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          )}
 
-      {/* Case 4: No previous application OR rejected with cooldown elapsed -> Show Application Form */}
-      {(!request || (request.status === "rejected" && !isCooldownActive)) && (
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="font-serif text-xl font-bold flex items-center gap-2">
-              <Sparkles className="size-5 text-accent-warm" />
-              <span>
-                {request ? "Reapply for Author Status" : "Author Application"}
-              </span>
-            </CardTitle>
-            <CardDescription>
-              {request ? (
-                <span className="text-status-success font-medium">
-                  Your 7-day cooldown has passed. You are now eligible to reapply.
-                </span>
-              ) : (
-                "Tell us about your background, expertise, and what topics you plan to write about."
-              )}
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            {request && request.status === "rejected" && (
-              <Alert className="mb-5 border-border bg-muted/30">
-                <RotateCcw className="size-4 text-accent-solid" />
-                <AlertTitle className="text-xs font-semibold">
-                  Previous Feedback
-                </AlertTitle>
-                <AlertDescription className="text-xs text-muted-foreground mt-0.5">
-                  {request.review_notes ||
-                    request.admin_note ||
-                    "No specific feedback provided."}
-                </AlertDescription>
-              </Alert>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {/* General form error */}
+            {formError && (
+              <div
+                role="alert"
+                className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive"
+              >
+                <AlertCircle className="size-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
             )}
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              {/* Error summary with role="alert" */}
-              {Object.keys(fieldErrors).length > 0 && (
-                <div
-                  role="alert"
-                  className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive"
-                >
-                  <p className="font-semibold">Please fix the following errors:</p>
-                  <ul className="mt-1 list-disc pl-4 space-y-0.5">
-                    {Object.entries(fieldErrors).map(([field, msg]) => (
-                      <li key={field}>{msg}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {formError && (
-                <div
-                  role="alert"
-                  className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[11px] text-destructive"
-                >
-                  <AlertCircle className="mt-px size-3.5 shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="bio">Author Biography</Label>
-                <Textarea
-                  id="bio"
-                  placeholder="Senior software engineer with 5+ years building backend microservices in Go and distributed database architectures…"
-                  rows={4}
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  disabled={isPending}
-                  aria-invalid={Boolean(fieldErrors.bio)}
-                  className="bg-background text-sm resize-none"
-                  required
-                />
-                <div className="flex justify-between text-[11px] text-muted-foreground">
-                  <span>Min. 10 characters</span>
-                  <span>{bio.length}/1000</span>
-                </div>
-                {fieldErrors.bio && (
-                  <p className="text-xs text-destructive">{fieldErrors.bio}</p>
-                )}
+            {/* Field 1: Bio */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="bio" className="text-sm font-medium text-foreground">
+                Author bio
+              </Label>
+              <Textarea
+                id="bio"
+                placeholder="Tell readers a bit about yourself, your background, or what you love writing about…"
+                rows={3}
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                disabled={isPending}
+                aria-invalid={Boolean(fieldErrors.bio)}
+                className="custom-scrollbar resize-none text-sm bg-background border-border/80 focus-visible:ring-1.5 focus-visible:ring-accent-solid/30 focus-visible:border-accent-solid rounded-xl p-3 leading-relaxed"
+                required
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span className={fieldErrors.bio ? "text-destructive" : ""}>
+                  {fieldErrors.bio || "Min. 10 characters"}
+                </span>
+                <span className="font-mono tabular-nums text-muted-foreground/70">
+                  {bio.length}/1000
+                </span>
               </div>
+            </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="motivation">Motivation & Writing Topics</Label>
-                <Textarea
-                  id="motivation"
-                  placeholder="I want to share deep dives on Go concurrency patterns, benchmark analysis, and production postmortems with the engineering community…"
-                  rows={4}
-                  value={motivation}
-                  onChange={(e) => setMotivation(e.target.value)}
-                  disabled={isPending}
-                  aria-invalid={Boolean(fieldErrors.motivation)}
-                  className="bg-background text-sm resize-none"
-                  required
-                />
-                <div className="flex justify-between text-[11px] text-muted-foreground">
-                  <span>Min. 10 characters</span>
-                  <span>{motivation.length}/2000</span>
-                </div>
-                {fieldErrors.motivation && (
-                  <p className="text-xs text-destructive">
-                    {fieldErrors.motivation}
-                  </p>
-                )}
+            {/* Field 2: Motivation */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="motivation" className="text-sm font-medium text-foreground">
+                What do you plan to write about?
+              </Label>
+              <Textarea
+                id="motivation"
+                placeholder="Share the topics, stories, essays, or ideas you'd like to publish on Bloggr…"
+                rows={3}
+                value={motivation}
+                onChange={(e) => setMotivation(e.target.value)}
+                disabled={isPending}
+                aria-invalid={Boolean(fieldErrors.motivation)}
+                className="custom-scrollbar resize-none text-sm bg-background border-border/80 focus-visible:ring-1.5 focus-visible:ring-accent-solid/30 focus-visible:border-accent-solid rounded-xl p-3 leading-relaxed"
+                required
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span className={fieldErrors.motivation ? "text-destructive" : ""}>
+                  {fieldErrors.motivation || "Min. 10 characters"}
+                </span>
+                <span className="font-mono tabular-nums text-muted-foreground/70">
+                  {motivation.length}/2000
+                </span>
               </div>
+            </div>
 
-              <fieldset className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <legend className="text-sm font-semibold">
-                    Sample Writing / Portfolio Links
-                  </legend>
-                  <Button
+            {/* Field 3: Sample links */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium text-foreground">
+                  Writing samples or portfolio <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                {sampleLinks.length < 3 && (
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
                     onClick={handleAddLink}
-                    disabled={isPending || sampleLinks.length >= 3}
-                    className="h-7 gap-1 text-xs text-accent-solid hover:text-accent-solid"
+                    disabled={isPending}
+                    className="text-xs font-semibold text-accent-solid hover:opacity-85 inline-flex items-center gap-1 transition-opacity"
                   >
                     <Plus className="size-3.5" />
                     <span>Add Link</span>
-                  </Button>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  {sampleLinks.map((link, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Input
-                        type="url"
-                        aria-label={`Sample link ${idx + 1}`}
-                        placeholder="https://example.com/my-article"
-                        value={link}
-                        onChange={(e) => handleLinkChange(idx, e.target.value)}
-                        disabled={isPending}
-                        className="bg-background text-xs"
-                      />
-                      {sampleLinks.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveLink(idx)}
-                          className="size-8 text-muted-foreground hover:text-destructive"
-                          aria-label={`Remove sample link ${idx + 1}`}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {fieldErrors.sample_links && (
-                  <p className="text-xs text-destructive">
-                    {fieldErrors.sample_links}
-                  </p>
+                  </button>
                 )}
-              </fieldset>
+              </div>
 
+              <div className="flex flex-col gap-2">
+                {sampleLinks.map((link, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      type="url"
+                      aria-label={`Sample link ${idx + 1}`}
+                      placeholder="https://example.com/my-writing"
+                      value={link}
+                      onChange={(e) => handleLinkChange(idx, e.target.value)}
+                      disabled={isPending}
+                      className="text-sm bg-background border-border/80 rounded-xl h-10"
+                    />
+                    {sampleLinks.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveLink(idx)}
+                        className="size-10 text-muted-foreground hover:text-destructive shrink-0"
+                        aria-label={`Remove link ${idx + 1}`}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {fieldErrors.sample_links && (
+                <p className="text-xs text-destructive">
+                  {fieldErrors.sample_links}
+                </p>
+              )}
+            </div>
+
+            {/* Submit button */}
+            <div className="pt-2">
               <Button
                 type="submit"
                 disabled={isPending}
-                className="w-fit mt-2 gap-2 bg-accent-solid text-white hover:bg-accent-solid/90"
+                className="gap-2 bg-accent-solid text-white hover:bg-accent-solid/90 rounded-xl px-5 py-2.5 h-10 text-sm font-semibold active:scale-[0.98] transition-all"
               >
                 {isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    <span>Submitting…</span>
+                  </>
                 ) : (
-                  <Send className="size-4" />
+                  <span>Submit application</span>
                 )}
-                <span>Submit application</span>
               </Button>
-            </form>
-          </CardContent>
+            </div>
+          </form>
         </Card>
       )}
     </div>
