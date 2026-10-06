@@ -106,7 +106,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
             </p>
           ),
           blockquote: ({ children }) => (
-            <blockquote className="my-6 border-l-4 border-accent-solid pl-5 py-1 italic text-muted-foreground bg-muted/30 rounded-r-md">
+            <blockquote className="my-6 border-l-2 border-border pl-5 py-1 italic text-muted-foreground bg-muted/20 rounded-r-md">
               {children}
             </blockquote>
           ),
