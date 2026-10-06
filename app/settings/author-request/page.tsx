@@ -134,7 +134,7 @@ export default function AuthorRequestPage() {
         });
 
         if (res.status === "success" && res.data) {
-          toast.success("Application submitted successfully", {
+          toast.success("Application submitted", {
             id: toastId,
           });
           setRequest(res.data);
