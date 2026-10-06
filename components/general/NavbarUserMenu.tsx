@@ -32,7 +32,7 @@ import {
   LogOut,
   Menu,
   User as UserIcon,
-  Sparkles,
+  PenTool,
 } from "lucide-react";
 
 interface NavbarUserMenuProps {
@@ -146,7 +146,7 @@ export function NavbarUserMenu({ user: initialUser }: NavbarUserMenuProps) {
                         href="/settings/author-request"
                         className="cursor-pointer gap-2"
                       >
-                        <Sparkles className="size-4 text-accent-warm" />
+                        <PenTool className="size-4 text-accent-warm" />
                         <span>Become an Author</span>
                       </Link>
                     </DropdownMenuItem>
@@ -243,7 +243,7 @@ export function NavbarUserMenu({ user: initialUser }: NavbarUserMenuProps) {
                       onClick={() => setMobileOpen(false)}
                       className="flex items-center gap-2 text-base font-medium text-foreground hover:text-accent-solid transition-colors"
                     >
-                      <Sparkles className="size-4 text-accent-warm" />
+                      <PenTool className="size-4 text-accent-warm" />
                       <span>Become an Author</span>
                     </Link>
                   )}
