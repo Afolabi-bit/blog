@@ -100,7 +100,7 @@ export default function RegisterPage() {
             Create your account
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Join a community of readers and writers on Bloggr.
+            Join a community of readers and writers on Noterverse.
           </CardDescription>
         </CardHeader>
         <CardContent>
