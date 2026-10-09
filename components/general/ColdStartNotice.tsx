@@ -12,8 +12,10 @@ export function ColdStartNotice() {
       setWaking(Boolean(customEvent.detail?.waking));
     }
 
+    window.addEventListener("noterverse:cold-start", handleColdStart);
     window.addEventListener("bloggr:cold-start", handleColdStart);
     return () => {
+      window.removeEventListener("noterverse:cold-start", handleColdStart);
       window.removeEventListener("bloggr:cold-start", handleColdStart);
     };
   }, []);
