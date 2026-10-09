@@ -299,7 +299,7 @@ export default function SettingsPage() {
                   <Label htmlFor="bio">Bio</Label>
                   <Textarea
                     id="bio"
-                    placeholder="Tell readers about yourself, engineering focus, and background…"
+                    placeholder="Tell readers about yourself, your interests, and what you write about…"
                     rows={3}
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
@@ -477,7 +477,7 @@ export default function SettingsPage() {
                   <span>Author Privileges</span>
                 </CardTitle>
                 <CardDescription>
-                  Apply to become an author on Bloggr to write and publish your own articles.
+                  Apply to become an author on Noterverse to write and publish your own articles.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
