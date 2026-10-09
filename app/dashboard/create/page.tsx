@@ -2,8 +2,8 @@ import { PostEditor } from "@/components/editor/PostEditor";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Write Article — Bloggr Studio",
-  description: "Create and publish a new article on Bloggr",
+  title: "Write Article — Noterverse Studio",
+  description: "Create and publish a new article on Noterverse",
 };
 
 export default function CreatePostPage() {
