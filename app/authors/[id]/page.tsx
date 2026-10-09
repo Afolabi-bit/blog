@@ -51,23 +51,23 @@ export async function generateMetadata({
   }
 
   const bioDescription =
-    author.bio || `Read articles written by ${author.full_name} on Bloggr.`;
+    author.bio || `Read articles written by ${author.full_name} on Noterverse.`;
 
   return {
-    title: `${author.full_name} — Bloggr`,
+    title: `${author.full_name} — Noterverse`,
     description: bioDescription,
     alternates: {
       canonical: `/authors/${author.id}`,
     },
     openGraph: {
-      title: `${author.full_name} — Bloggr Author`,
+      title: `${author.full_name} — Noterverse Author`,
       description: bioDescription,
       type: "profile",
       images: author.avatar_url ? [{ url: author.avatar_url }] : [],
     },
     twitter: {
       card: "summary",
-      title: `${author.full_name} — Bloggr`,
+      title: `${author.full_name} — Noterverse`,
       description: bioDescription,
       images: author.avatar_url ? [author.avatar_url] : [],
     },
@@ -178,7 +178,7 @@ export default async function AuthorProfilePage({ params }: AuthorPageProps) {
               Articles by {author.full_name}
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Published writing and technical essays.
+              Published stories, essays, and articles.
             </p>
           </div>
         </div>
