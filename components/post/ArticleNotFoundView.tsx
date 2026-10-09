@@ -104,7 +104,7 @@ export function ArticleNotFoundView() {
       {/* Search recovery tool */}
       <section className="mt-8 border-t border-border/60 pt-6">
         <h2 className="text-sm font-semibold text-foreground">
-          Search Bloggr
+          Search Noterverse
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Search for this article by title keywords, author name, or topic.
