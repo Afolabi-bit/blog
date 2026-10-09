@@ -13,11 +13,12 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const STORAGE_KEY = "bloggr-theme";
+const STORAGE_KEY = "noterverse-theme";
+const LEGACY_STORAGE_KEY = "bloggr-theme";
 
 export const themeScript = `(function() {
   try {
-    var stored = localStorage.getItem("${STORAGE_KEY}");
+    var stored = localStorage.getItem("${STORAGE_KEY}") || localStorage.getItem("${LEGACY_STORAGE_KEY}");
     var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     var theme = stored === "dark" || (!stored && prefersDark) || (stored === "system" && prefersDark) ? "dark" : "light";
     if (theme === "dark") {
@@ -34,7 +35,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
+      const stored = (localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY)) as Theme | null;
       if (stored === "light" || stored === "dark" || stored === "system") {
         setThemeState(stored);
       }
