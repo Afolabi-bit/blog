@@ -1,4 +1,4 @@
-# Bloggr — End-to-End QA Test Plan (Manual Confirmation Only)
+# Noterverse — End-to-End QA Test Plan (Manual Confirmation Only)
 
 > **Branch under test:** `feat/phase-1-feed-and-reading`  
 > **API base:** `https://go-blog-k1kn.onrender.com`  
