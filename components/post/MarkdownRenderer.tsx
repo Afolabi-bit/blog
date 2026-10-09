@@ -74,7 +74,7 @@ function CodeBlock({ children, className }: { children: React.ReactNode; classNa
 
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
-    <div className="article-body prose-bloggr">
+    <div className="article-body prose-noterverse">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize]}
