@@ -12,17 +12,17 @@ export function Footer() {
           <Link
             href="/"
             className="group flex items-center gap-2 transition-opacity hover:opacity-85 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-md"
-            aria-label="Bloggr home"
+            aria-label="Noterverse home"
           >
             <Image
-              src="/logo.png"
+              src="/noterverse-logo.png"
               alt=""
               width={22}
               height={22}
               className="size-5.5 rounded-full object-cover shadow-2xs"
             />
             <span className="font-serif text-base font-bold tracking-tight text-accent-solid">
-              Bloggr
+              Noterverse
             </span>
           </Link>
           <span className="text-muted-foreground/30 text-xs select-none">·</span>
