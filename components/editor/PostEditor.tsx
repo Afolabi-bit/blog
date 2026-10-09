@@ -70,7 +70,8 @@ interface AutosaveDraft {
 export function PostEditor({ initialPost }: PostEditorProps) {
   const router = useRouter();
   const isEditing = Boolean(initialPost);
-  const draftKey = `bloggr:draft:${initialPost?.id || "new"}`;
+  const draftKey = `noterverse:draft:${initialPost?.id || "new"}`;
+  const legacyDraftKey = `bloggr:draft:${initialPost?.id || "new"}`;
 
   const [title, setTitle] = useState(initialPost?.title || "");
   const [content, setContent] = useState(initialPost?.content || "");
@@ -145,7 +146,7 @@ export function PostEditor({ initialPost }: PostEditorProps) {
   // Check for restorable draft on mount
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(draftKey);
+      const raw = localStorage.getItem(draftKey) || localStorage.getItem(legacyDraftKey);
       if (raw) {
         const data = JSON.parse(raw) as AutosaveDraft;
         const isDifferent =
@@ -162,7 +163,7 @@ export function PostEditor({ initialPost }: PostEditorProps) {
     } catch {
       // Ignore localStorage errors
     }
-  }, [draftKey, initialPost]);
+  }, [draftKey, legacyDraftKey, initialPost]);
 
   const [availableTags, setAvailableTags] = useState<string[]>([]);
 
@@ -446,7 +447,7 @@ export function PostEditor({ initialPost }: PostEditorProps) {
             setForbiddenError(true);
             try {
               sessionStorage.setItem(
-                "bloggr:expired-session-draft",
+                "noterverse:expired-session-draft",
                 JSON.stringify({
                   title,
                   content,
