@@ -4,7 +4,7 @@ import { API_BASE_URL } from "@/lib/client";
 import type { ApiResponse, PostsResponse, Post } from "@/lib/types";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://bloggr.dev";
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://noterverse.vercel.app";
 
   let posts: Post[] = [];
   try {
