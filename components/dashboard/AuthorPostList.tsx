@@ -222,7 +222,7 @@ export function AuthorPostList({ initialPosts, initialStats }: AuthorPostListPro
           </h3>
           <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto mb-6">
             {filter === "all"
-              ? "Write your first post to share your knowledge, architectural insights, and engineering ideas with readers on Bloggr."
+              ? "Write your first post to share your stories, essays, and ideas with readers on Noterverse."
               : "Try switching the filter or creating a new article."}
           </p>
           <Button asChild className="bg-accent-solid text-white hover:bg-accent-solid/90">
