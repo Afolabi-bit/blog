@@ -11,7 +11,7 @@ import { Plus, PenTool } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Author Studio — Bloggr",
+  title: "Author Studio — Noterverse",
   description: "Manage your published stories and drafts",
 };
 
