@@ -12,26 +12,31 @@ import { getServerSession } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://bloggr.dev"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://noterverse.vercel.app"),
   title: {
-    default: "Bloggr — Distraction-Free Reading and Publishing",
-    template: "%s — Bloggr",
+    default: "Noterverse — Distraction-Free Reading and Publishing",
+    template: "%s — Noterverse",
   },
   description:
-    "A modern blogging platform built with editorial craft, fast typography, and developer workflows.",
+    "A distraction-free publishing platform for stories, essays, and ideas from writers everywhere.",
+  icons: {
+    icon: [
+      { url: "/noterverse-logo.png", sizes: "512x512", type: "image/png" },
+    ],
+  },
   openGraph: {
-    title: "Bloggr — Distraction-Free Reading and Publishing",
+    title: "Noterverse — Distraction-Free Reading and Publishing",
     description:
-      "A modern blogging platform built with editorial craft, fast typography, and developer workflows.",
+      "A distraction-free publishing platform for stories, essays, and ideas from writers everywhere.",
     type: "website",
     url: "/",
-    siteName: "Bloggr",
+    siteName: "Noterverse",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Bloggr — Distraction-Free Reading and Publishing",
+    title: "Noterverse — Distraction-Free Reading and Publishing",
     description:
-      "A modern blogging platform built with editorial craft, fast typography, and developer workflows.",
+      "A distraction-free publishing platform for stories, essays, and ideas from writers everywhere.",
   },
 };
 
