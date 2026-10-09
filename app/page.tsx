@@ -121,8 +121,8 @@ async function FeedContent({
             {activeSearch
               ? `Showing stories matching your search keyword.`
               : activeTag
-                ? `In-depth technical writing categorized under #${activeTag}.`
-                : "Discover in-depth engineering breakdowns, architectural patterns, and essays."}
+                ? `Stories and essays tagged #${activeTag}.`
+                : "Explore stories, essays, and perspectives from writers on any topic."}
           </p>
         </div>
 
@@ -144,7 +144,9 @@ async function FeedContent({
       </div>
 
       {/* Tag Filter Rail */}
-      <TagRail tags={tags} activeTag={activeTag} />
+      <div id="topics" className="scroll-mt-20">
+        <TagRail tags={tags} activeTag={activeTag} />
+      </div>
 
       {/* Paginated Feed List with Magazine Layout */}
       <FeedList
