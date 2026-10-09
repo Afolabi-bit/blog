@@ -127,7 +127,7 @@ export function TiptapEditor({
       },
       attributes: {
         class:
-          "prose-bloggr min-h-full w-full p-5 focus:outline-hidden sm:p-7 leading-relaxed",
+          "prose-noterverse min-h-full w-full p-5 focus:outline-hidden sm:p-7 leading-relaxed",
         "aria-label": "Rich text article editor canvas",
       },
     },
