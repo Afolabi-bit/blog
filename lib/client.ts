@@ -116,6 +116,9 @@ let activeColdStartRequests = 0;
 function notifyColdStart(waking: boolean) {
   if (typeof window !== "undefined") {
     window.dispatchEvent(
+      new CustomEvent("noterverse:cold-start", { detail: { waking } }),
+    );
+    window.dispatchEvent(
       new CustomEvent("bloggr:cold-start", { detail: { waking } }),
     );
   }
