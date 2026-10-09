@@ -1,6 +1,6 @@
-# Blog Platform
+# Noterverse
 
-This is a full-stack blog platform built with modern web technologies. It allows users to create, publish, and manage their own blog posts.
+A distraction-free reading and publishing platform built with modern web technologies (deployed at [noterverse.vercel.app](https://noterverse.vercel.app)).
 
 ## Features
 
