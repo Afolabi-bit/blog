@@ -5,7 +5,7 @@ import { Shield } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Admin Console — Bloggr",
+  title: "Admin Console — Noterverse",
   description: "Moderation console for author requests and platform articles",
 };
 
