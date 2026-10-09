@@ -165,7 +165,7 @@ export default function AuthorRequestPage() {
             You are an author
           </h2>
           <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-            You have active publishing privileges on Bloggr. You can create and publish articles directly from your studio.
+            You have active publishing privileges on Noterverse. You can create and publish articles directly from your studio.
           </p>
           <div className="mt-6">
             <Button
@@ -375,7 +375,7 @@ export default function AuthorRequestPage() {
               </Label>
               <Textarea
                 id="motivation"
-                placeholder="Share the topics, stories, essays, or ideas you'd like to publish on Bloggr…"
+                placeholder="Share the topics, stories, essays, or ideas you'd like to publish on Noterverse…"
                 rows={3}
                 value={motivation}
                 onChange={(e) => setMotivation(e.target.value)}
