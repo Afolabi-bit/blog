@@ -43,8 +43,8 @@ export async function generateMetadata({
   const snippet = post.excerpt || stripMarkdown(post.content).slice(0, 160);
 
   return {
-    title: `${post.title} — Bloggr`,
-    description: snippet || "Read full story on Bloggr.",
+    title: `${post.title} — Noterverse`,
+    description: snippet || "Read full story on Noterverse.",
     alternates: {
       canonical: `/post/${post.slug}`,
     },
